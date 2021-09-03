@@ -6,19 +6,25 @@ import numpy as np
 from adb_shell.adb_device import AdbDeviceTcp
 from adb_shell.auth.keygen import keygen
 from adb_shell.auth.sign_pythonrsa import PythonRSASigner
-from .config import cfg
+from app.config import cfg
 
 PATH = './config.ini'
+
 
 class ADBClient(object):
     def __init__(self):
         super().__init__()
         CFG = cfg(PATH)
-        self.device = AdbDeviceTcp(CFG.read('network', 'ip'), CFG.read('network', 'port'))
+        self.device = AdbDeviceTcp(
+            CFG.read(
+                'network', 'ip'), CFG.read(
+                'network', 'port'))
         key_path = "adb.local.key"
         if not os.path.isfile(key_path):
             keygen(key_path)
-        self.device.connect(rsa_keys=[PythonRSASigner.FromRSAKeyPath(key_path)])
+        self.device.connect(
+            rsa_keys=[
+                PythonRSASigner.FromRSAKeyPath(key_path)])
 
     def __del__(self):
         self.device.close()
@@ -30,7 +36,8 @@ class ADBClient(object):
         height = int.from_bytes(img_data[4:8], "little")
         pixel_format = int.from_bytes(img_data[8:12], "little")
         assert pixel_format == 1, "Unsupported pixel format: %s" % pixel_format
-        return cv2.cvtColor(np.frombuffer(img_data, np.uint8)[12:(width * height * 4 + 12)].reshape(height, width, 4), cv2.COLOR_BGRA2RGB)
+        return cv2.cvtColor(np.frombuffer(img_data, np.uint8)[12:(
+            width * height * 4 + 12)].reshape(height, width, 4), cv2.COLOR_BGRA2RGB)
 
     def tap(self, x, y):
         print("ADB.tap(%.0f, %.0f)" % (x, y))
@@ -54,7 +61,8 @@ class ADBClient(object):
             cv2.circle(img2, (x, y), 10, (128, 255, 0), 5)
             cv2.imshow('fig', img2)
         elif event == cv2.EVENT_MOUSEMOVE and (flags & cv2.EVENT_FLAG_LBUTTON):
-            cv2.line(img2, (self.x0, self.y0), (x, y), (255, 128, 0), thickness=2)
+            cv2.line(img2, (self.x0, self.y0), (x, y),
+                     (255, 128, 0), thickness=2)
             cv2.imshow('fig', img2)
         elif event == cv2.EVENT_LBUTTONUP:
             self.x1, self.y1 = x, y

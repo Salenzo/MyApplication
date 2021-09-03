@@ -60,4 +60,3 @@ class cfg(object):
     def delete(self, section, keyword) -> None:
         self.config.remove_option(section, keyword)
         self.__save()
-

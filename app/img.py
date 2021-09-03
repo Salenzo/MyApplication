@@ -82,6 +82,8 @@ class image(object):
         img5 = cv2.drawMatchesKnn(template, kp1, img, kp2, good, None, flags=2)
         # TODO get the roi region from the matches and return
         # show the roi region's similarity with the template
+        # sample https://blog.csdn.net/wangzhenyang2/article/details/85106267
+        # [ WARN:0] global /tmp/pip-req-build-xw6jtoah/opencv_contrib/modules/xfeatures2d/misc/python/shadow_sift.hpp (13) SIFT_create DEPRECATED: cv.xfeatures2d.SIFT_create() is deprecated due SIFT tranfer to the main repository. https://github.com/opencv/opencv/issues/16736
         cv2.namedWindow('BFmatch', cv2.WINDOW_NORMAL)
         cv2.resizeWindow('BFmatch', self.height, self.width)
         cv2.imshow('BFmatch', img5)

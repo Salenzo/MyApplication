@@ -66,7 +66,7 @@ class image(object):
                 cv2.imshow('ROI', cut_img)
 
     def sift(self, template_path):
-        sift = cv2.xfeatures2d.SIFT_create()
+        sift = cv2.SIFT_create()
         template = cv2.imread(template_path)
         img = self.img
         kp1, des1 = sift.detectAndCompute(template, None)

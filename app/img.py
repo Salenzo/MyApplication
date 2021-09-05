@@ -34,7 +34,7 @@ class image(object):
             key = cv2.waitKey(0)
             if key is not None:
                 break
-        cv2.destroyAllWindows()
+        cv2.descriptortroyAllWindows()
         try:
             cv2.imwrite(save_path, self.cut_img)
         except Exception as err:
@@ -69,20 +69,31 @@ class image(object):
         sift = cv2.SIFT_create()
         template = cv2.imread(template_path)
         img = self.img
-        kp1, des1 = sift.detectAndCompute(template, None)
-        kp2, des2 = sift.detectAndCompute(img, None)
+        keypoint1, descriptor1 = sift.detectAndCompute(template, None)
+        keypoint2, descriptor2 = sift.detectAndCompute(img, None)
 
         bf = cv2.BFMatcher()
-        matches = bf.knnMatch(des1, des2, k=2)
+        matches = bf.knnMatch(descriptor1, descriptor2, k=2)
 
         good = []
         for m, n in matches:
-            if m.distance < 0.75 * n.distance:
+            if m.distance < 0.90 * n.distance:
                 good.append([m])
-        img5 = cv2.drawMatchesKnn(template, kp1, img, kp2, good, None, flags=2)
+
+        if len(good) > 20:
+            print('template matched')
+        else:
+            print('template not matched')
+
+        img5 = cv2.drawMatchesKnn(
+            template,
+            keypoint1,
+            img,
+            keypoint2,
+            good,
+            None,
+            flags=2)
         # TODO get the roi region from the matches and return
-        # show the roi region's similarity with the template
-        # sample https://blog.csdn.net/wangzhenyang2/article/details/85106267
         cv2.namedWindow('BFmatch', cv2.WINDOW_NORMAL)
         cv2.resizeWindow('BFmatch', self.height, self.width)
         cv2.imshow('BFmatch', img5)

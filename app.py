@@ -4,4 +4,4 @@ from app.img import image
 
 IMG = image('./app/img/a_3.jpg', 140)
 # IMG.crop('./app/template/a.png')
-IMG.sift('./app/template/a.png')
+print(IMG.sift('./app/template/a.png'))

@@ -77,13 +77,9 @@ class image(object):
         matches = bf.knnMatch(descriptor1, descriptor2, k=2)
 
         good = []
-        kx = []
-        ky = []
         for i, (m, n) in enumerate(matches):
             if m.distance < 0.75 * n.distance:
                 good.append([m])
-                kx.append(keypoint2[n.trainIdx].pt[0])
-                ky.append(keypoint2[n.trainIdx].pt[1])
         # Initialize lists
         list_kp1 = []
         list_kp2 = []
@@ -104,27 +100,15 @@ class image(object):
             # Append to each list
             list_kp1.append((x1, y1))
             list_kp2.append((x2, y2))
+
         list_kp2 = [keypoint2[mat[0].trainIdx].pt for mat in matches]
+
         X = np.median([pt[0] for pt in list_kp2])
         Y = np.median([pt[1] for pt in list_kp2])
-        print(X, Y)
 
         if len(good) > 10:
-            print('template matched')
+            print('matched')
         else:
             print('template not matched')
 
-        img5 = cv2.drawMatchesKnn(
-            template,
-            keypoint1,
-            img,
-            keypoint2,
-            good,
-            None,
-            flags=2)
-        # TODO get the roi region from the matches and return
-        cv2.namedWindow('BFmatch', cv2.WINDOW_NORMAL)
-        cv2.resizeWindow('BFmatch', self.height, self.width)
-        cv2.imshow('BFmatch', img5)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        return X, Y

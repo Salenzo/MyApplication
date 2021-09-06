@@ -75,7 +75,6 @@ class image(object):
 
         bf = cv2.BFMatcher()
         matches = bf.knnMatch(descriptor1, descriptor2, k=2)
-        matchesMask = [[0, 0] for i in range(len(matches))]
 
         good = []
         kx = []
@@ -83,11 +82,31 @@ class image(object):
         for i, (m, n) in enumerate(matches):
             if m.distance < 0.75 * n.distance:
                 good.append([m])
-                matchesMask[i] = [1, 0]
                 kx.append(keypoint2[n.trainIdx].pt[0])
                 ky.append(keypoint2[n.trainIdx].pt[1])
-        X = np.median(kx)
-        Y = np.median(ky)
+        # Initialize lists
+        list_kp1 = []
+        list_kp2 = []
+
+        # For each match...
+        for mat, _ in matches:
+
+            # Get the matching keypoints for each of the images
+            img1_idx = mat.queryIdx
+            img2_idx = mat.trainIdx
+
+            # x - columns
+            # y - rows
+            # Get the coordinates
+            (x1, y1) = keypoint1[img1_idx].pt
+            (x2, y2) = keypoint2[img2_idx].pt
+
+            # Append to each list
+            list_kp1.append((x1, y1))
+            list_kp2.append((x2, y2))
+        list_kp2 = [keypoint2[mat[0].trainIdx].pt for mat in matches]
+        X = np.median([pt[0] for pt in list_kp2])
+        Y = np.median([pt[1] for pt in list_kp2])
         print(X, Y)
 
         if len(good) > 10:

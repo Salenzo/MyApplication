@@ -1,5 +1,6 @@
 import cv2
 from app.config import cfg
+import numpy as np
 
 PATH = './config.ini'
 
@@ -34,7 +35,7 @@ class image(object):
             key = cv2.waitKey(0)
             if key is not None:
                 break
-        cv2.descriptortroyAllWindows()
+        cv2.destroyAllWindows()
         try:
             cv2.imwrite(save_path, self.cut_img)
         except Exception as err:
@@ -74,13 +75,22 @@ class image(object):
 
         bf = cv2.BFMatcher()
         matches = bf.knnMatch(descriptor1, descriptor2, k=2)
+        matchesMask = [[0, 0] for i in range(len(matches))]
 
         good = []
-        for m, n in matches:
-            if m.distance < 0.90 * n.distance:
+        kx = []
+        ky = []
+        for i, (m, n) in enumerate(matches):
+            if m.distance < 0.75 * n.distance:
                 good.append([m])
+                matchesMask[i] = [1, 0]
+                kx.append(keypoint2[n.trainIdx].pt[0])
+                ky.append(keypoint2[n.trainIdx].pt[1])
+        X = np.median(kx)
+        Y = np.median(ky)
+        print(X, Y)
 
-        if len(good) > 20:
+        if len(good) > 10:
             print('template matched')
         else:
             print('template not matched')

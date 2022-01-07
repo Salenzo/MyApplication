@@ -22,7 +22,8 @@ import io.github.salenzo.myapplication.senders.KeyboardSender
 import io.github.salenzo.myapplication.senders.USBKeyboardState
 import java.lang.Integer.min
 
-
+@Suppress("DEPRECATION")
+@SuppressLint("ObsoleteSdkInt", "ResourceType", "ClickableViewAccessibility", "SetTextI18n")
 class SelectDeviceActivity : Activity(), KeyEvent.Callback {
 	private var bluetoothStatus: MenuItem? = null
 	private var rKeyboardSender: KeyboardSender? = null
@@ -163,7 +164,6 @@ class SelectDeviceActivity : Activity(), KeyEvent.Callback {
 
 	lateinit var sv: HorizontalScrollView
 
-	@SuppressLint("ResourceType", "ClickableViewAccessibility")
 	public override fun onCreate(savedInstanceState: Bundle?) {
 		super.onCreate(savedInstanceState)
 		sv = HorizontalScrollView(this)
@@ -365,7 +365,7 @@ class SelectDeviceActivity : Activity(), KeyEvent.Callback {
 					startActivityForResult(
 						Intent(
 							Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-							Uri.fromParts("package", getPackageName(), null)
+							Uri.fromParts("package", packageName, null)
 						), 0
 					)
 				}

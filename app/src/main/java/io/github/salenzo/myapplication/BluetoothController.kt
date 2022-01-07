@@ -236,8 +236,9 @@ object BluetoothController : BluetoothHidDevice.Callback(), BluetoothProfile.Ser
 	const val TAG = "BluetoothController"
 }
 
+@Suppress("DEPRECATION")
+@SuppressLint("ObsoleteSdkInt")
 object MyCompatibility {
-	@SuppressLint("ObsoleteSdkInt")
 	fun viberate(context: Context, milliseconds: Long) {
 		val v = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -247,7 +248,6 @@ object MyCompatibility {
 		}
 	}
 
-	@SuppressLint("ObsoleteSdkInt")
 	fun getDrawable(context: Context, id: Int): Drawable {
 		return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
 			context.getDrawable(id)!!

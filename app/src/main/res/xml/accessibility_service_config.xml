@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+											 android:description="@string/s22"
+											 android:packageNames="com.example.android.apis"
+											 android:accessibilityEventTypes="typeAllMask"
+											 android:accessibilityFlags="flagDefault"
+											 android:accessibilityFeedbackType="feedbackGeneric"
+											 android:notificationTimeout="100"
+											 android:canRetrieveWindowContent="true"
+											 android:canPerformGestures="true"
+											 android:canRequestTouchExplorationMode="true"
+											 android:canRequestFilterKeyEvents="true"
+											 android:canControlMagnification="true"
+											 android:settingsActivity="com.example.android.accessibility.ServiceSettingsActivity">
+
+</accessibility-service>

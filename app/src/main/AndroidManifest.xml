@@ -24,7 +24,9 @@
 		android:allowBackup="false"
 		android:label="迫真应用"
 		android:supportsRtl="false"
-		android:theme="@style/AppStyle" android:icon="@android:drawable/ic_media_play">
+		android:theme="@style/AppStyle"
+		android:icon="@android:drawable/ic_media_play"
+		android:name="com.chaquo.python.android.PyApplication">
 		<service
 			android:name=".MyService"
 			android:enabled="true"

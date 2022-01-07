@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<style name="AppStyle" parent="android:Theme.DeviceDefault">
+		<!-- The most beautiful color in hexadecimal. -->
+		<item name="android:navigationBarColor">#123456</item>
+		<item name="android:statusBarColor">#abcdef</item>
+		<item name="android:windowBackground">@android:drawable/zoom_plate</item>
+	</style>
+</resources>

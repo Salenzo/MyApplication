@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<style name="AppStyle" parent="android:Theme.DeviceDefault">
+		<!-- The most beautiful color in hexadecimal. -->
+		<item name="android:navigationBarColor">#000000</item>
+		<item name="android:statusBarColor">#000000</item>
+		<item name="android:windowBackground">@android:drawable/menu_full_frame</item>
+	</style>
+</resources>

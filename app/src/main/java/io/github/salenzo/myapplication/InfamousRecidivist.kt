@@ -67,7 +67,7 @@ class InfamousRecidivistService :	AccessibilityService() {
 					dispatchGesture(GestureDescription.Builder().addStroke(StrokeDescription(Path().apply {
 						moveTo(400f, 1000f)
 						lineTo(400f, 400f)
-					}, 0, 500)).build(), null, null)
+					}, 0, 50)).build(), null, null)
 				}
 			})
 		}

@@ -15,6 +15,7 @@ import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.Toast
+import com.chaquo.python.Python
 
 
 class InfamousRecidivist
@@ -29,7 +30,7 @@ class InfamousRecidivistService :	AccessibilityService() {
 		val wm = getSystemService(WINDOW_SERVICE) as WindowManager
 		mLayout = LinearLayout(this).apply {
 			layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-			orientation = LinearLayout.HORIZONTAL
+			orientation = LinearLayout.VERTICAL
 			addView(Button(this@InfamousRecidivistService).apply {
 				text = "パワー"
 				layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
@@ -38,7 +39,7 @@ class InfamousRecidivistService :	AccessibilityService() {
 				}
 			})
 			addView(Button(this@InfamousRecidivistService).apply {
-				text = "发出很大声音程度的能力"
+				text = "发出很大声音\n程度的能力"
 				textSize /= 4
 				layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
 				setOnClickListener {
@@ -68,6 +69,15 @@ class InfamousRecidivistService :	AccessibilityService() {
 						moveTo(400f, 1000f)
 						lineTo(400f, 400f)
 					}, 0, 50)).build(), null, null)
+				}
+			})
+			addView(Button(this@InfamousRecidivistService).apply {
+				text = "Python"
+				layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+				setOnClickListener {
+					val x = Python.getInstance().getModule("pymain").callAttr("aaa", "我${BuildConfig.APPLICATION_ID}用的CV版本是").toString()
+					Toast.makeText(this@InfamousRecidivistService, x, Toast.LENGTH_SHORT)
+					this.text = x
 				}
 			})
 		}

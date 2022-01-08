@@ -20,6 +20,7 @@ import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.Toast
+import com.chaquo.python.PyException
 import com.chaquo.python.Python
 import com.koushikdutta.async.http.Multimap
 import com.koushikdutta.async.http.body.AsyncHttpRequestBody
@@ -137,14 +138,15 @@ class InfamousRecidivistService :	AccessibilityService() {
 				response.send(template + f.readText())
 			}
 			this.post("/") { request, response ->
-				response.send(template + try {
+				response.send("<!DOCTYPE html>\n<title>Breaking news</title>" +
+					"<a href=\"/\">返回</a><p style=white-space:pre>成功" + try {
 					val code = request.getBody<AsyncHttpRequestBody<Multimap?>>().get()!!["code"]!![0]
 					f.writeText(code)
 					stopPython()
 					startPython()
-					code
+					"了！"
 				} catch (e: Exception) {
-					e.toString() + "\n\n" + f.readText()
+					"搞出" + e.toString() + "\n\n" + f.readText()
 				})
 			}
 			listen(11451)
@@ -152,7 +154,11 @@ class InfamousRecidivistService :	AccessibilityService() {
 	}
 
 	private fun stopPython() {
-		Python.getInstance().getModule("pymain").callAttr("kill_thread", mPythonThreadId)
+		try {
+			Python.getInstance().getModule("pymain").callAttr("kill_thread", mPythonThreadId)
+		} catch (_: PyException) {
+		}
+		mPythonThread = null
 	}
 
 	private fun startPython() {

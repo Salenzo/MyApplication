@@ -7,6 +7,14 @@ import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothHidDevice
 import android.content.Context
 import android.content.Intent
+import android.content.res.Resources
+import android.graphics.Bitmap
+import android.graphics.PixelFormat
+import android.hardware.display.DisplayManager
+import android.media.Image
+import android.media.ImageReader
+import android.media.projection.MediaProjection
+import android.media.projection.MediaProjectionManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -21,6 +29,7 @@ import android.widget.*
 import io.github.salenzo.myapplication.senders.KeyboardSender
 import io.github.salenzo.myapplication.senders.USBKeyboardState
 import java.lang.Integer.min
+import java.nio.ByteBuffer
 
 @Suppress("DEPRECATION")
 @SuppressLint("ObsoleteSdkInt", "ResourceType", "ClickableViewAccessibility", "SetTextI18n")
@@ -30,6 +39,34 @@ class SelectDeviceActivity : Activity(), KeyEvent.Callback {
 	private var hidd: BluetoothHidDevice? = null
 	private var host: BluetoothDevice? = null
 	private val state = USBKeyboardState()
+	companion object {
+		var mMediaProjection: MediaProjection? = null
+		val mImageReader = ImageReader.newInstance(
+			1920,
+			1080,
+			PixelFormat.RGBA_8888,  //此处必须和下面 buffer处理一致的格式 ，RGB_565在一些机器上出现兼容问题。
+			10
+		)
+		fun deimg(): Bitmap? {
+			if (mMediaProjection == null) return null
+			val img = mImageReader.acquireLatestImage()
+			if (img == null) return null
+			val width: Int = img.getWidth()
+			val height: Int = img.getHeight()
+			val planes: Array<Image.Plane> = img.getPlanes()
+			val buffer: ByteBuffer = planes[0].getBuffer()
+			val pixelStride: Int = planes[0].getPixelStride()
+			val rowStride: Int = planes[0].getRowStride()
+			val rowPadding = rowStride - pixelStride * width
+			val bitmap = Bitmap.createBitmap(
+				width + rowPadding / pixelStride, height,
+				Bitmap.Config.ARGB_8888
+			)
+			bitmap.copyPixelsFromBuffer(buffer)
+			img.close()
+			return bitmap
+		}
+	}
 	val ks = arrayOf(
 		intArrayOf(Int.MIN_VALUE, Int.MIN_VALUE, 4, 3, 0x2744, KeyEvent.KEYCODE_ESCAPE),
 		intArrayOf(-1, Int.MIN_VALUE, 4, 3, Int.MIN_VALUE, Int.MIN_VALUE),
@@ -393,10 +430,33 @@ class SelectDeviceActivity : Activity(), KeyEvent.Callback {
 				true
 			}
 		}
+		menu?.add("获取截屏权限")?.apply {
+			setOnMenuItemClickListener {
+				if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+					startActivityForResult(
+						(getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager).createScreenCaptureIntent(),
+						1
+					)
+				}
+				true
+			}
+		}
 		return true
 	}
 
 	override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
 		Toast.makeText(this, "请求代码${requestCode}的活动结果 = $resultCode", Toast.LENGTH_SHORT).show()
+		if (requestCode == 1 && data != null && mMediaProjection == null) {
+			val mediaProjection = (getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager).getMediaProjection(resultCode, data)
+			mediaProjection.createVirtualDisplay(
+				"screen-mirror",
+				1920,
+				1080,
+				Resources.getSystem().getDisplayMetrics().densityDpi,
+				DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
+				mImageReader.getSurface(), null, null
+			)
+			mMediaProjection = mediaProjection
+		}
 	}
 }

@@ -26,15 +26,18 @@
 		android:supportsRtl="false"
 		android:theme="@style/AppStyle"
 		android:icon="@android:drawable/ic_media_play"
-		android:name="com.chaquo.python.android.PyApplication">
+		android:name="com.chaquo.python.android.PyApplication"
+		android:foregroundServiceType="mediaProjection">
 		<service
 			android:name=".MyService"
 			android:enabled="true"
-			android:exported="false">
+			android:exported="false"
+			android:foregroundServiceType="mediaProjection">
 		</service>
 		<service android:name=".InfamousRecidivistService"
 						 android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
-						 android:label="迫真传奇重犯">
+						 android:label="迫真传奇重犯" android:exported="true"
+						 android:foregroundServiceType="mediaProjection">
 			<intent-filter>
 				<action android:name="android.accessibilityservice.AccessibilityService" />
 			</intent-filter>
@@ -45,7 +48,8 @@
 		<activity
 			android:name=".SelectDeviceActivity"
 			android:configChanges="orientation|screenSize"
-			android:screenOrientation="landscape">
+			android:screenOrientation="landscape" android:exported="true"
+			android:foregroundServiceType="mediaProjection">
 			<intent-filter>
 				<action android:name="android.intent.action.MAIN"/>
 				<category android:name="android.intent.category.LAUNCHER"/>

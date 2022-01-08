@@ -6,6 +6,7 @@ import android.accessibilityservice.GestureDescription.StrokeDescription
 import android.annotation.SuppressLint
 import android.graphics.Path
 import android.graphics.PixelFormat
+import android.graphics.drawable.BitmapDrawable
 import android.media.AudioManager
 import android.view.Gravity
 import android.view.ViewGroup
@@ -16,6 +17,8 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.Toast
 import com.chaquo.python.Python
+import java.nio.ByteBuffer
+import kotlin.concurrent.thread
 
 
 class InfamousRecidivist
@@ -24,7 +27,7 @@ class InfamousRecidivist
 class InfamousRecidivistService :	AccessibilityService() {
 	var mLayout: LinearLayout? = null
 	var mLastKnownRoot: AccessibilityNodeInfo? = null
-
+	var mPythonThread: Thread? = null
 	override fun onServiceConnected() {
 		// Create an overlay and display the action bar
 		val wm = getSystemService(WINDOW_SERVICE) as WindowManager
@@ -80,6 +83,26 @@ class InfamousRecidivistService :	AccessibilityService() {
 					this.text = x
 				}
 			})
+			addView(Button(this@InfamousRecidivistService).apply {
+				text = "录屏"
+				width = 192
+				height = 108
+				setOnClickListener {
+					text = "开始了吗？"
+					background = BitmapDrawable(resources, SelectDeviceActivity.deimg())
+				}
+			})
+			addView(Button(this@InfamousRecidivistService).apply {
+				text = "执行"
+				setOnClickListener {
+					if (text == "执行") {
+						mPythonThread = thread {
+							Python.getInstance().getModule("pymain").callAttr("main", this@InfamousRecidivistService)
+						}
+						text = "赫赫有名之停不下来"
+					}
+				}
+			})
 		}
 		wm.addView(mLayout, WindowManager.LayoutParams().apply {
 			type = WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY
@@ -89,6 +112,23 @@ class InfamousRecidivistService :	AccessibilityService() {
 			height = WindowManager.LayoutParams.WRAP_CONTENT
 			gravity = Gravity.TOP
 		})
+	}
+	fun swipe(x1: Float, y1: Float, x2: Float, y2: Float, duration: Float) {
+		dispatchGesture(GestureDescription.Builder().addStroke(StrokeDescription(Path().apply {
+			moveTo(x1, y1)
+			lineTo(x2, y2)
+		}, 0, (duration * 1000).toLong())).build(), null, null)
+	}
+	fun tap(x: Float, y: Float) {
+		swipe(x - 1, y - 1, x + 1, y + 1, 0.02f)
+	}
+	fun screenshot(): ByteArray? {
+		return SelectDeviceActivity.deimg()?.let {
+			val byteBuffer: ByteBuffer = ByteBuffer.allocate(it.getRowBytes() * it.getHeight())
+			it.copyPixelsToBuffer(byteBuffer)
+			it.recycle()
+			byteBuffer.array()
+		}
 	}
 	private fun findScrollableNode(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {
 		val deque: ArrayDeque<AccessibilityNodeInfo> = ArrayDeque()

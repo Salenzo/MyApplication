@@ -21,6 +21,11 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.Toast
 import com.chaquo.python.Python
+import com.koushikdutta.async.http.Multimap
+import com.koushikdutta.async.http.body.AsyncHttpRequestBody
+import com.koushikdutta.async.http.server.AsyncHttpServer
+import java.io.File
+import java.lang.Exception
 import java.nio.ByteBuffer
 import kotlin.concurrent.thread
 
@@ -33,6 +38,7 @@ class InfamousRecidivistService :	AccessibilityService() {
 	var mLastKnownRoot: AccessibilityNodeInfo? = null
 	var mPythonThread: Thread? = null
 	var mPythonThreadId: Long = -1
+	var mServer: AsyncHttpServer? = null
 	override fun onServiceConnected() {
 		// “迫真应用”正在运行
 		// 点按即可了解详情或停止应用。
@@ -110,21 +116,6 @@ class InfamousRecidivistService :	AccessibilityService() {
 				}
 				visibility = ViewGroup.GONE
 			})
-			addView(Button(this@InfamousRecidivistService).apply {
-				text = "执行"
-				setOnClickListener {
-					if (text == "执行") {
-						mPythonThread = thread {
-							mPythonThreadId = Python.getInstance().getModule("threading").callAttr("get_ident").toLong()
-							Python.getInstance().getModule("pymain").callAttr("main", this@InfamousRecidivistService)
-						}
-						text = "赫赫有名之停不下来"
-					} else {
-						Python.getInstance().getModule("pymain").callAttr("kill_thread", mPythonThreadId)
-						text = "执行"
-					}
-				}
-			})
 		}
 		wm.addView(mLayout, WindowManager.LayoutParams().apply {
 			type = WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY
@@ -134,7 +125,43 @@ class InfamousRecidivistService :	AccessibilityService() {
 			height = WindowManager.LayoutParams.WRAP_CONTENT
 			gravity = Gravity.TOP
 		})
+
+		val f = File(filesDir, "more.py")
+		if (!f.exists()) f.writeBytes(byteArrayOf())
+		startPython()
+		val template = "<!DOCTYPE html>\n<title>Mansfield</title>" +
+			"<style>*{margin:0;padding:0}textarea{border:0;width:100vw;height:100vh}</style>" +
+			"<form method=post><input type=submit><textarea name=code>"
+		mServer = AsyncHttpServer().apply {
+			this.get("/") { request, response ->
+				response.send(template + f.readText())
+			}
+			this.post("/") { request, response ->
+				response.send(template + try {
+					val code = request.getBody<AsyncHttpRequestBody<Multimap?>>().get()!!["code"]!![0]
+					f.writeText(code)
+					stopPython()
+					startPython()
+					code
+				} catch (e: Exception) {
+					e.toString() + "\n\n" + f.readText()
+				})
+			}
+			listen(11451)
+		}
 	}
+
+	private fun stopPython() {
+		Python.getInstance().getModule("pymain").callAttr("kill_thread", mPythonThreadId)
+	}
+
+	private fun startPython() {
+		mPythonThread = thread {
+			mPythonThreadId = Python.getInstance().getModule("threading").callAttr("get_ident").toLong()
+			Python.getInstance().getModule("pymain").callAttr("main", this@InfamousRecidivistService)
+		}
+	}
+
 	fun swipe(x1: Float, y1: Float, x2: Float, y2: Float, duration: Float) {
 		dispatchGesture(GestureDescription.Builder().addStroke(StrokeDescription(Path().apply {
 			moveTo(x1, y1)

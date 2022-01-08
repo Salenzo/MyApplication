@@ -1,10 +1,8 @@
 import os
 import sys
 import math
-import time
-import cv2
 import ctypes
-import numpy as np
+import traceback
 
 # 保留测试用
 def aaa(a):
@@ -19,13 +17,15 @@ def kill_thread(tid):
     return ret
 
 def main(service):
-    with open(os.path.join(os.environ["HOME"], "more.py"), "w") as f:
-        f.write("while True:\n    adb.swipe(400,1000,400,400,0.05)\n    time.sleep(0.5)")
     try:
+        #import time
         #while True:
-        #    service.swipe(400,1000,400,400,0.05)
-        #    service.screenshot() # 可能返回None，如果不是空那应该是个数组吧，我也不知道具体是什么
+        #    adb.swipe(400,1000,400,400,0.05)
+        #    adb.screenshot() # 可能返回None，如果不是空那应该是个数组吧，我也不知道具体是什么
         #    time.sleep(0.5)
-        exec("import time\nwhile True:\n    adb.swipe(400,1000,400,400,0.05)\n    time.sleep(0.5)", {"adb": service})
+        exec(open(os.path.join(os.environ["HOME"], "more.py")).read(), {"adb": service})
     except SystemExit:
         pass
+    except Exception as e:
+        with open(os.path.join(os.environ["HOME"], "more.py"), "w") as f:
+            f.write("\"\"\"" + traceback.format_exc() + "\"\"\"")

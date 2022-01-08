@@ -17,7 +17,7 @@ android {
             pip {
                 install "chaquopy-crc32c"
                 //options "--index-url", "https://mirror.sjtu.edu.cn/pypi/web/simple"
-                install "opencv-contrib-python-headless==4.5.1.48"
+                install "opencv-contrib-python==4.5.1.48"
             }
         }
     }
@@ -31,11 +31,12 @@ android {
         }
     }
     kotlinOptions {
-        jvmTarget = '1.6' // Java 7 not supported by kotlinOptions jvmTarget
+        jvmTarget = '1.8' // Java 7 not supported by kotlinOptions jvmTarget
     }
 }
 
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
     implementation "androidx.constraintlayout:constraintlayout:2.1.2"
+    implementation 'com.koushikdutta.async:androidasync:3.1.0'
 }

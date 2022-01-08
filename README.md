@@ -10,3 +10,4 @@ Yet another (rubbish) dump-type app.
 致谢：
 - [Kontroller](https://github.com/raghavk92/Kontroller) by @raghavk92 and @rostopira (Apache-2.0)
 - [Developing an Accessibility Service for Android](https://codelabs.developers.google.com/codelabs/developing-android-a11y-service/) and [#27 from another codelab](https://github.com/googlecodelabs/android-accessibility/issues/27)
+- Chaquopy [#456](https://github.com/chaquo/chaquopy/issues/456)

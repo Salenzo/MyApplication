@@ -4,10 +4,14 @@ import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
 import android.accessibilityservice.GestureDescription.StrokeDescription
 import android.annotation.SuppressLint
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.graphics.Path
 import android.graphics.PixelFormat
 import android.graphics.drawable.BitmapDrawable
 import android.media.AudioManager
+import android.os.Build
 import android.view.Gravity
 import android.view.ViewGroup
 import android.view.WindowManager
@@ -23,12 +27,20 @@ import kotlin.concurrent.thread
 
 class InfamousRecidivist
 
-@SuppressLint("SetTextI18n")
+@SuppressLint("SetTextI18n", "ObsoleteSdkInt")
 class InfamousRecidivistService :	AccessibilityService() {
 	var mLayout: LinearLayout? = null
 	var mLastKnownRoot: AccessibilityNodeInfo? = null
 	var mPythonThread: Thread? = null
+	var mPythonThreadId: Long = -1
 	override fun onServiceConnected() {
+		// “迫真应用”正在运行
+		// 点按即可了解详情或停止应用。
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+			getSystemService(NotificationManager::class.java).createNotificationChannel(NotificationChannel("２５５６５", "迫真传奇重犯正在运行", NotificationManager.IMPORTANCE_DEFAULT))
+		}
+		startForeground(25565, Notification.Builder(this, "２５５６５").build())
+
 		// Create an overlay and display the action bar
 		val wm = getSystemService(WINDOW_SERVICE) as WindowManager
 		mLayout = LinearLayout(this).apply {
@@ -40,6 +52,7 @@ class InfamousRecidivistService :	AccessibilityService() {
 				setOnClickListener {
 					performGlobalAction(GLOBAL_ACTION_POWER_DIALOG)
 				}
+				visibility = ViewGroup.GONE
 			})
 			addView(Button(this@InfamousRecidivistService).apply {
 				text = "发出很大声音\n程度的能力"
@@ -52,6 +65,7 @@ class InfamousRecidivistService :	AccessibilityService() {
 						AudioManager.FLAG_SHOW_UI
 					)
 				}
+				visibility = ViewGroup.GONE
 			})
 			addView(Button(this@InfamousRecidivistService).apply {
 				text = "scroll"
@@ -63,6 +77,7 @@ class InfamousRecidivistService :	AccessibilityService() {
 						Toast.makeText(this@InfamousRecidivistService, "失敗した…", Toast.LENGTH_SHORT)
 					}
 				}
+				visibility = ViewGroup.GONE
 			})
 			addView(Button(this@InfamousRecidivistService).apply {
 				text = "swipe"
@@ -73,6 +88,7 @@ class InfamousRecidivistService :	AccessibilityService() {
 						lineTo(400f, 400f)
 					}, 0, 50)).build(), null, null)
 				}
+				visibility = ViewGroup.GONE
 			})
 			addView(Button(this@InfamousRecidivistService).apply {
 				text = "Python"
@@ -82,6 +98,7 @@ class InfamousRecidivistService :	AccessibilityService() {
 					Toast.makeText(this@InfamousRecidivistService, x, Toast.LENGTH_SHORT)
 					this.text = x
 				}
+				visibility = ViewGroup.GONE
 			})
 			addView(Button(this@InfamousRecidivistService).apply {
 				text = "录屏"
@@ -91,15 +108,20 @@ class InfamousRecidivistService :	AccessibilityService() {
 					text = "开始了吗？"
 					background = BitmapDrawable(resources, SelectDeviceActivity.deimg())
 				}
+				visibility = ViewGroup.GONE
 			})
 			addView(Button(this@InfamousRecidivistService).apply {
 				text = "执行"
 				setOnClickListener {
 					if (text == "执行") {
 						mPythonThread = thread {
+							mPythonThreadId = Python.getInstance().getModule("threading").callAttr("get_ident").toLong()
 							Python.getInstance().getModule("pymain").callAttr("main", this@InfamousRecidivistService)
 						}
 						text = "赫赫有名之停不下来"
+					} else {
+						Python.getInstance().getModule("pymain").callAttr("kill_thread", mPythonThreadId)
+						text = "执行"
 					}
 				}
 			})

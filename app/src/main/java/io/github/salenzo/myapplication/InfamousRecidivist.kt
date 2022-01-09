@@ -19,9 +19,7 @@ import android.text.*
 import android.text.style.ForegroundColorSpan
 import android.text.style.StyleSpan
 import android.util.Log
-import android.view.Gravity
-import android.view.ViewGroup
-import android.view.WindowManager
+import android.view.*
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.*
@@ -46,7 +44,13 @@ class InfamousRecidivistService :	AccessibilityService() {
 	var mPythonThread: Thread? = null
 	var mPythonThreadId: Long = -1
 	var mServer: AsyncHttpServer? = null
-	var mtvOutput: TextView? = null
+	// 被线程安全搞怕了，不敢用数组
+	var mtvOutput0: TextView? = null
+	var mtvOutput1: TextView? = null
+	var mtvOutput2: TextView? = null
+	var mtvOutput3: TextView? = null
+	var mllTouch: LinearLayout? = null
+	@SuppressLint("ClickableViewAccessibility")
 	override fun onServiceConnected() {
 		// “迫真应用”正在运行
 		// 点按即可了解详情或停止应用。
@@ -55,8 +59,21 @@ class InfamousRecidivistService :	AccessibilityService() {
 		}
 		startForeground(25565, Notification.Builder(this, "２５５６５").build())
 
-		// Create an overlay and display the action bar
 		val wm = getSystemService(WINDOW_SERVICE) as WindowManager
+		wm.addView(LinearLayout(this).apply {
+			mllTouch = this
+			layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT)
+			background = ColorDrawable(0x66ccffff)
+			setOnTouchListener { view, motionEvent ->
+				mtvOutput1?.text = "${motionEvent.rawX}, ${motionEvent.rawY}"
+				true
+			}
+		}, WindowManager.LayoutParams().apply {
+			type = WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY
+			format = PixelFormat.TRANSLUCENT
+			flags = flags or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+		})
+		// Create an overlay and display the action bar
 		wm.addView(LinearLayout(this).apply {
 			layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
 			orientation = LinearLayout.VERTICAL
@@ -124,6 +141,18 @@ class InfamousRecidivistService :	AccessibilityService() {
 				}
 				visibility = ViewGroup.GONE
 			})
+			addView(Button(this@InfamousRecidivistService).apply {
+				text = "x, y"
+				setOnClickListener {
+					if (mllTouch?.visibility == ViewGroup.VISIBLE) {
+						mllTouch?.visibility = ViewGroup.GONE
+						mtvOutput1?.visibility = ViewGroup.GONE
+					} else {
+						mllTouch?.visibility = ViewGroup.VISIBLE
+						mtvOutput1?.visibility = ViewGroup.VISIBLE
+					}
+				}
+			})
 		}, WindowManager.LayoutParams().apply {
 			type = WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY
 			format = PixelFormat.TRANSLUCENT
@@ -136,16 +165,38 @@ class InfamousRecidivistService :	AccessibilityService() {
 			layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
 			orientation = LinearLayout.VERTICAL
 			addView(TextView(this@InfamousRecidivistService).apply {
-				mtvOutput = this
-				freezesText = true
-				isSingleLine = true
-				breakStrategy = Layout.BREAK_STRATEGY_SIMPLE
-				ellipsize = TextUtils.TruncateAt.MIDDLE
-				typeface = Typeface.MONOSPACE
+				mtvOutput0 = this
+				background = ColorDrawable(0x80000000.toInt())
+				setTextColor(Color.WHITE)
+			})
+			addView(TextView(this@InfamousRecidivistService).apply {
+				mtvOutput1 = this
+				background = ColorDrawable(0x80ffa500.toInt())
+				setTextColor(Color.BLACK)
+				//visibility = ViewGroup.GONE
+			})
+			addView(TextView(this@InfamousRecidivistService).apply {
+				mtvOutput2 = this
+				background = ColorDrawable(0xaa114514.toInt())
+				setTextColor(Color.WHITE)
+				//visibility = ViewGroup.GONE
+			})
+			addView(TextView(this@InfamousRecidivistService).apply {
+				mtvOutput3 = this
 				background = ColorDrawable(0x89abcdef.toInt())
 				setTextColor(Color.BLACK)
-				setPadding(20, 4, 20, 4)
+				//visibility = ViewGroup.GONE
 			})
+			listOf(mtvOutput0, mtvOutput1, mtvOutput2, mtvOutput3).forEach {
+				with(it!!) {
+					freezesText = true
+					isSingleLine = true
+					breakStrategy = Layout.BREAK_STRATEGY_SIMPLE
+					ellipsize = TextUtils.TruncateAt.MIDDLE
+					typeface = Typeface.MONOSPACE
+					setPadding(20, 4, 20, 4)
+				}
+			}
 		}, WindowManager.LayoutParams().apply {
 			type = WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY
 			format = PixelFormat.TRANSLUCENT
@@ -234,8 +285,8 @@ class InfamousRecidivistService :	AccessibilityService() {
 			else -> StyleSpan(Typeface.NORMAL)
 		}
 		val ss = SimpleDateFormat("HH:mm:ss ").format(Date()) + if (s.last() != '\n') s + "\n" else s
-		mtvOutput?.post {
-			mtvOutput?.text = SpannableString(ss).apply { setSpan(styleSpan, 8, ss.length, 0) }
+		mtvOutput0?.post {
+			mtvOutput0?.text = SpannableString(ss).apply { setSpan(styleSpan, 8, ss.length, 0) }
 		}
 	}
 	fun log(s: PyObject) {

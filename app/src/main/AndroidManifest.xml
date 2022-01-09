@@ -22,39 +22,47 @@
 		android:required="false"/>
 
 	<application
+		android:name="com.chaquo.python.android.PyApplication"
 		android:allowBackup="false"
+		android:foregroundServiceType="mediaProjection"
+		android:icon="@android:drawable/ic_media_play"
 		android:label="迫真应用"
 		android:supportsRtl="false"
-		android:theme="@style/AppStyle"
-		android:icon="@android:drawable/ic_media_play"
-		android:name="com.chaquo.python.android.PyApplication"
-		android:foregroundServiceType="mediaProjection">
+		android:theme="@style/AppStyle">
 		<service
 			android:name=".MyService"
 			android:enabled="true"
 			android:exported="false"
 			android:foregroundServiceType="mediaProjection">
 		</service>
-		<service android:name=".InfamousRecidivistService"
-						 android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
-						 android:label="迫真传奇重犯" android:exported="true"
-						 android:foregroundServiceType="mediaProjection">
+		<service
+			android:name=".InfamousRecidivistService"
+			android:exported="true"
+			android:foregroundServiceType="mediaProjection"
+			android:icon="@android:drawable/ic_media_next"
+			android:label="迫真传奇重犯"
+			android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
 			<intent-filter>
-				<action android:name="android.accessibilityservice.AccessibilityService" />
+				<action android:name="android.accessibilityservice.AccessibilityService"/>
 			</intent-filter>
+
 			<meta-data
 				android:name="android.accessibilityservice"
-				android:resource="@xml/accessibility_service_config" />
+				android:resource="@xml/accessibility_service_config"/>
 		</service>
+
 		<activity
 			android:name=".SelectDeviceActivity"
 			android:configChanges="orientation|screenSize"
-			android:screenOrientation="landscape" android:exported="true"
-			android:foregroundServiceType="mediaProjection">
+			android:exported="true"
+			android:foregroundServiceType="mediaProjection"
+			android:screenOrientation="landscape">
 			<intent-filter>
 				<action android:name="android.intent.action.MAIN"/>
+
 				<category android:name="android.intent.category.LAUNCHER"/>
 			</intent-filter>
 		</activity>
 	</application>
+
 </manifest>

@@ -7,39 +7,50 @@ import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.graphics.Color
 import android.graphics.Path
 import android.graphics.PixelFormat
+import android.graphics.Typeface
 import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.ColorDrawable
 import android.media.AudioManager
 import android.os.Build
+import android.text.*
+import android.text.style.CharacterStyle
+import android.text.style.ForegroundColorSpan
+import android.text.style.StyleSpan
+import android.util.Log
 import android.view.Gravity
+import android.view.KeyEvent
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
-import android.widget.Button
-import android.widget.LinearLayout
-import android.widget.Toast
+import android.view.inputmethod.EditorInfo
+import android.widget.*
 import com.chaquo.python.PyException
+import com.chaquo.python.PyObject
 import com.chaquo.python.Python
 import com.koushikdutta.async.http.Multimap
 import com.koushikdutta.async.http.body.AsyncHttpRequestBody
 import com.koushikdutta.async.http.server.AsyncHttpServer
 import java.io.File
-import java.lang.Exception
+import java.net.Socket
 import java.nio.ByteBuffer
+import java.text.SimpleDateFormat
+import java.util.*
+import kotlin.collections.ArrayDeque
 import kotlin.concurrent.thread
 
 
-class InfamousRecidivist
-
 @SuppressLint("SetTextI18n", "ObsoleteSdkInt")
 class InfamousRecidivistService :	AccessibilityService() {
-	var mLayout: LinearLayout? = null
 	var mLastKnownRoot: AccessibilityNodeInfo? = null
 	var mPythonThread: Thread? = null
 	var mPythonThreadId: Long = -1
 	var mServer: AsyncHttpServer? = null
+	var mtvOutput: TextView? = null
+	val mtvOutputContents: ArrayList<Spannable> = arrayListOf(SpannableString(""), SpannableString(""), SpannableString(""), SpannableString(""))
 	override fun onServiceConnected() {
 		// “迫真应用”正在运行
 		// 点按即可了解详情或停止应用。
@@ -50,7 +61,7 @@ class InfamousRecidivistService :	AccessibilityService() {
 
 		// Create an overlay and display the action bar
 		val wm = getSystemService(WINDOW_SERVICE) as WindowManager
-		mLayout = LinearLayout(this).apply {
+		wm.addView(LinearLayout(this).apply {
 			layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
 			orientation = LinearLayout.VERTICAL
 			addView(Button(this@InfamousRecidivistService).apply {
@@ -115,16 +126,64 @@ class InfamousRecidivistService :	AccessibilityService() {
 					text = "开始了吗？"
 					background = BitmapDrawable(resources, SelectDeviceActivity.deimg())
 				}
+				//visibility = ViewGroup.GONE
+			})
+			addView(EditText(this@InfamousRecidivistService).apply {
+				imeOptions = EditorInfo.IME_ACTION_SEND or EditorInfo.IME_FLAG_NO_FULLSCREEN
+				isSingleLine = true
+				text.append("commands?")
+				// Strip formatting from pasted text.
+				addTextChangedListener(object : TextWatcher {
+					override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {
+					}
+					override fun onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {
+					}
+					override fun afterTextChanged(e: Editable) {
+						e.getSpans(0, e.length, CharacterStyle::class.java).forEach { e.removeSpan(it) }
+					}
+				})
+				setOnEditorActionListener { v, actionId, event ->
+					if (actionId == EditorInfo.IME_ACTION_SEND ||
+						event != null && event.action == KeyEvent.ACTION_UP
+					) {
+						val text = "${v.text}\n"
+						v.setText("")
+						log(text, 0)
+						Python.getInstance().getModule("pymain").callAttr("put_input", text)
+					}
+					// If we return false on ACTION_DOWN, we won't be given the ACTION_UP.
+					true
+				}
 				visibility = ViewGroup.GONE
 			})
-		}
-		wm.addView(mLayout, WindowManager.LayoutParams().apply {
+		}, WindowManager.LayoutParams().apply {
 			type = WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY
 			format = PixelFormat.TRANSLUCENT
 			flags = flags or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
 			width = WindowManager.LayoutParams.WRAP_CONTENT
 			height = WindowManager.LayoutParams.WRAP_CONTENT
 			gravity = Gravity.TOP
+		})
+		wm.addView(LinearLayout(this).apply {
+			layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+			orientation = LinearLayout.VERTICAL
+			addView(TextView(this@InfamousRecidivistService).apply {
+				mtvOutput = this
+				freezesText = true
+				breakStrategy = Layout.BREAK_STRATEGY_SIMPLE
+				typeface = Typeface.MONOSPACE
+				background = ColorDrawable(0x89abcdef.toInt())
+				setTextColor(Color.BLACK)
+				setPadding(20, 4, 20, 4)
+				setLines(4)
+			})
+		}, WindowManager.LayoutParams().apply {
+			type = WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY
+			format = PixelFormat.TRANSLUCENT
+			flags = flags or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+			width = WindowManager.LayoutParams.MATCH_PARENT
+			height = WindowManager.LayoutParams.WRAP_CONTENT
+			gravity = Gravity.BOTTOM
 		})
 
 		val f = File(filesDir, "more.py")
@@ -135,22 +194,35 @@ class InfamousRecidivistService :	AccessibilityService() {
 			"<form method=post><input type=submit><textarea name=code>"
 		mServer = AsyncHttpServer().apply {
 			this.get("/") { request, response ->
-				response.send(template + f.readText())
+				response.send(template + f.readText().replace("&", "&amp;").replace("<", "&lt;"))
 			}
 			this.post("/") { request, response ->
 				response.send("<!DOCTYPE html>\n<title>Breaking news</title>" +
 					"<a href=\"/\">返回</a><p style=white-space:pre>成功" + try {
-					val code = request.getBody<AsyncHttpRequestBody<Multimap?>>().get()!!["code"]!![0]
-					f.writeText(code)
-					stopPython()
-					startPython()
-					"了！"
-				} catch (e: Exception) {
-					"搞出" + e.toString() + "\n\n" + f.readText()
-				})
+						val code = request.getBody<AsyncHttpRequestBody<Multimap?>>().get()!!["code"]!![0]
+						f.writeText(code)
+						stopPython()
+						startPython()
+						"了！"
+					} catch (e: Exception) {
+						"搞出" + e.toString() + "\n\n" + f.readText()
+					}.replace("&", "&amp;").replace("<", "&lt;")
+				)
 			}
 			listen(11451)
 		}
+		thread {
+			val s = Socket("192.168.1.1", 80)
+			log("自圆其说的网页http://${s.getLocalAddress().hostAddress}:11451/", 16)
+			s.close()
+		}
+	}
+
+	override fun onDestroy() {
+		stopPython()
+		Log.d("io.salenzo.myapplication - InfamousRecidivist", "onDestroy")
+		stopForeground(true)
+		mServer?.stop()
 	}
 
 	private fun stopPython() {
@@ -185,6 +257,26 @@ class InfamousRecidivistService :	AccessibilityService() {
 			byteBuffer.array()
 		}
 	}
+	fun log(s: String, style: Int) {
+		val styleSpan = when (style) {
+			0 -> StyleSpan(Typeface.BOLD_ITALIC) // stdin
+			2 -> ForegroundColorSpan(0xffffa500.toInt()) // stderr
+			16 -> StyleSpan(Typeface.BOLD) // Java
+			else -> StyleSpan(Typeface.NORMAL)
+		}
+		val ss = SimpleDateFormat("HH:mm:ss ").format(Date()) + if (s.last() != '\n') s + "\n" else s
+		mtvOutputContents.add(SpannableString(ss).apply { setSpan(styleSpan, 0, ss.length, 0) })
+		mtvOutputContents.removeFirst()
+		mtvOutput?.post {
+			mtvOutput?.run {
+				setText("")
+				mtvOutputContents.forEach { append(it) }
+			}
+		}
+	}
+	fun log(s: PyObject) {
+		log(s.toString(), 1)
+	}
 	private fun findScrollableNode(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {
 		val deque: ArrayDeque<AccessibilityNodeInfo> = ArrayDeque()
 		deque.add(root)
@@ -207,7 +299,6 @@ class InfamousRecidivistService :	AccessibilityService() {
 		}
 	}
 	override fun onInterrupt() {
-
 	}
 	override fun getRootInActiveWindow(): AccessibilityNodeInfo? {
 		return super.getRootInActiveWindow() ?: mLastKnownRoot

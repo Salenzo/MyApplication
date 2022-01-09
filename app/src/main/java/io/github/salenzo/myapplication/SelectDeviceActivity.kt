@@ -2,6 +2,7 @@ package io.github.salenzo.myapplication
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.app.NotificationManager
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothHidDevice
@@ -433,10 +434,15 @@ class SelectDeviceActivity : Activity(), KeyEvent.Callback {
 		menu?.add("获取截屏权限")?.apply {
 			setOnMenuItemClickListener {
 				if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-					startActivityForResult(
-						(getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager).createScreenCaptureIntent(),
-						1
-					)
+					if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && getSystemService(NotificationManager::class.java).activeNotifications.none { it.notification.channelId == "２５５６５" }) {
+						Toast.makeText(this@SelectDeviceActivity, "媒体投射要求前台服务正在运行，这在本应用中与无障碍服务合并。准备好后，再次尝试获取权限。", Toast.LENGTH_LONG).show()
+						startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+					} else {
+						startActivityForResult(
+							(getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager).createScreenCaptureIntent(),
+							1
+						)
+					}
 				}
 				true
 			}

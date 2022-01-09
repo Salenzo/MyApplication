@@ -1,7 +1,0 @@
-.venv/
-adb.local.key
-adb.local.key.pub
-**/__pycache__
-.vscode/
-*.jpg
-*.png

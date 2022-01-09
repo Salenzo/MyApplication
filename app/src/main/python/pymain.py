@@ -27,5 +27,4 @@ def main(service):
     except Exception as e:
         with open(os.path.join(os.environ["HOME"], "more.py"), "w") as f:
             f.write("r\"\"\"" + traceback.format_exc().replace("\"\"\"", "\\\"\"\"") + "\n\"\"\"")
-        service.log(f"发生了异常{e}；", 16)
-    service.log("Python止步于此。", 16)
+        service.log(f"发生了异常{e}。", 16)

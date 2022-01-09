@@ -50,7 +50,6 @@ class InfamousRecidivistService :	AccessibilityService() {
 	var mPythonThreadId: Long = -1
 	var mServer: AsyncHttpServer? = null
 	var mtvOutput: TextView? = null
-	val mtvOutputContents: ArrayList<Spannable> = arrayListOf(SpannableString(""), SpannableString(""), SpannableString(""), SpannableString(""))
 	override fun onServiceConnected() {
 		// “迫真应用”正在运行
 		// 点按即可了解详情或停止应用。
@@ -126,34 +125,6 @@ class InfamousRecidivistService :	AccessibilityService() {
 					text = "开始了吗？"
 					background = BitmapDrawable(resources, SelectDeviceActivity.deimg())
 				}
-				//visibility = ViewGroup.GONE
-			})
-			addView(EditText(this@InfamousRecidivistService).apply {
-				imeOptions = EditorInfo.IME_ACTION_SEND or EditorInfo.IME_FLAG_NO_FULLSCREEN
-				isSingleLine = true
-				text.append("commands?")
-				// Strip formatting from pasted text.
-				addTextChangedListener(object : TextWatcher {
-					override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {
-					}
-					override fun onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {
-					}
-					override fun afterTextChanged(e: Editable) {
-						e.getSpans(0, e.length, CharacterStyle::class.java).forEach { e.removeSpan(it) }
-					}
-				})
-				setOnEditorActionListener { v, actionId, event ->
-					if (actionId == EditorInfo.IME_ACTION_SEND ||
-						event != null && event.action == KeyEvent.ACTION_UP
-					) {
-						val text = "${v.text}\n"
-						v.setText("")
-						log(text, 0)
-						Python.getInstance().getModule("pymain").callAttr("put_input", text)
-					}
-					// If we return false on ACTION_DOWN, we won't be given the ACTION_UP.
-					true
-				}
 				visibility = ViewGroup.GONE
 			})
 		}, WindowManager.LayoutParams().apply {
@@ -170,12 +141,13 @@ class InfamousRecidivistService :	AccessibilityService() {
 			addView(TextView(this@InfamousRecidivistService).apply {
 				mtvOutput = this
 				freezesText = true
+				isSingleLine = true
 				breakStrategy = Layout.BREAK_STRATEGY_SIMPLE
+				ellipsize = TextUtils.TruncateAt.MIDDLE
 				typeface = Typeface.MONOSPACE
 				background = ColorDrawable(0x89abcdef.toInt())
 				setTextColor(Color.BLACK)
 				setPadding(20, 4, 20, 4)
-				setLines(4)
 			})
 		}, WindowManager.LayoutParams().apply {
 			type = WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY
@@ -265,13 +237,8 @@ class InfamousRecidivistService :	AccessibilityService() {
 			else -> StyleSpan(Typeface.NORMAL)
 		}
 		val ss = SimpleDateFormat("HH:mm:ss ").format(Date()) + if (s.last() != '\n') s + "\n" else s
-		mtvOutputContents.add(SpannableString(ss).apply { setSpan(styleSpan, 0, ss.length, 0) })
-		mtvOutputContents.removeFirst()
 		mtvOutput?.post {
-			mtvOutput?.run {
-				setText("")
-				mtvOutputContents.forEach { append(it) }
-			}
+			mtvOutput?.setText(SpannableString(ss).apply { setSpan(styleSpan, 8, ss.length, 0) })
 		}
 	}
 	fun log(s: PyObject) {

@@ -2,29 +2,20 @@ import cv2
 from app.config import cfg
 import numpy as np
 
-PATH = './config.ini'
 
-
-class image(object):
-    def __init__(self, origin_path, threshold) -> None:
+class imgOper(object):
+    def __init__(self, path, origin_path) -> None:
         super().__init__()
-        CFG = cfg(PATH)
+        CFG = cfg(path)
         h, w = CFG.read('ui', 'window_size').split('x', 1)
 
         self.origin_path = origin_path
-        self.threshold = threshold
         self.height = int(h)
         self.width = int(w)
         self.point1 = (0, 0)
         self.point2 = (0, 0)
 
-        self.refresh()
-
-    def refresh(self) -> None:
-        img = cv2.imread(self.origin_path)
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        ret, self.img = cv2.threshold(
-            img, self.threshold, 255, cv2.THRESH_BINARY)
+        self.img = cv2.imread(self.origin_path)
 
     def crop(self, save_path) -> None:
         cv2.namedWindow('image', cv2.WINDOW_NORMAL)
@@ -75,7 +66,6 @@ class image(object):
 
         bf = cv2.BFMatcher()
         matches = bf.knnMatch(descriptor1, descriptor2, k=2)
-
         good = []
         for i, (m, n) in enumerate(matches):
             if m.distance < 0.75 * n.distance:
@@ -106,9 +96,15 @@ class image(object):
         X = np.median([pt[0] for pt in list_kp2])
         Y = np.median([pt[1] for pt in list_kp2])
 
-        if len(good) > 10:
+        if len(good) > 5:
             print('matched')
         else:
             print('template not matched')
 
-        return X, Y
+        tmpMatch = cv2.drawMatchesKnn(template, keypoint1, self.img, keypoint2, good, None, flags=2)
+        cv2.namedWindow('BFmatch', cv2.WINDOW_NORMAL)
+        cv2.resizeWindow('BFmatch', self.height, self.width)
+        cv2.imshow('BFmatch', tmpMatch)
+        cv2.waitKey(0)
+
+        return int(X), int(Y)

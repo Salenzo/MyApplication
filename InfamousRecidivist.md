@@ -24,12 +24,11 @@
 - `adb.swipe(x0, y0, x1, y1, duration)`：模拟直线滑动。
   - 不阻塞，duration单位为秒。
   - Android 11及以后才能流畅模拟，早期版本的系统高傲地以为100毫秒的采样周期能满足所有人的需求。
-- `adb.screenshot()`：截取屏幕。如果没有权限，或者画面距上次截图以来没有变化，或者还没来得及截到最新一张图，返回None。成功截到的话，返回的是Java字节数组，以奇怪顺序存储色值。
+- `adb.screenshot()`：截取屏幕。如果没有权限，或者画面距上次截图以来没有变化，或者还没来得及截到最新一张图，返回None。成功截到的话，返回的是适合cv2直接处理的图像。
   - 目前固定分辨率1920 × 1080。
-  - 转换到适用于cv2的方法是`import cv2; import numpy as np; cv2.cvtColor(np.array(a, dtype=np.uint8).reshape(1080, 1920, 4), cv2.COLOR_BGRA2RGB)`。
 - `adb.log(object)`：在迫真控制台中打印信息。迫真控制台只能显示最近的一行文本，没有任何滚屏手段。
 
-此外，有numpy和cv2库可用。
+此外，有numpy和cv2库可用。但是，诸如cv2.imshow这样的图形界面函数无法使用，将抛出“The function is not implemented”的异常。
 
 ## 试验的方法
 
@@ -45,18 +44,17 @@ t0 = time.time()
 j = 0
 list = [None] * 60
 for i in range(60):
-    a = adb.screenshot()
-    if not (a is None):
-        a = cv2.cvtColor(np.array(a, dtype=np.uint8).reshape(1080, 1920, 4), cv2.COLOR_BGRA2RGB)
-        list[i] = a
+    list[i] = adb.screenshot()
+    if list[i] is not None:
         adb.log(f"截了第{i}张（丢了{i - j}张）。")
         j = j + 1
 
 t1 = time.time()
 
 for i in range(60):
-    if not (list[i] is None):
-        adb.log(f"正在保存{i}")
+    if list[i] is not None:
+        adb.log(f"正在保存第{i}张。")
         cv2.imwrite(f"/data/data/io.github.salenzo.myapplication/files/{i}.png", list[i])
+
 adb.log(f"截取{j}帧到OpenCV图像共计{t1 - t0}秒。")
 ```

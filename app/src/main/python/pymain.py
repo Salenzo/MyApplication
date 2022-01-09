@@ -1,6 +1,8 @@
 import os
 import ctypes
 import traceback
+import cv2
+import numpy as np
 
 # 保留测试用
 def aaa(a):
@@ -13,6 +15,9 @@ def kill_thread(tid):
         ctypes.pythonapi.PyThreadState_SetAsyncExc(tid, None)
     print("kill_thread = " + str(ret))
     return ret
+
+def convert_jarray_to_cv2(a):
+    return cv2.cvtColor(np.array(a, dtype=np.uint8).reshape(1080, 1920, 4), cv2.COLOR_BGRA2RGB)
 
 def main(service):
     try:

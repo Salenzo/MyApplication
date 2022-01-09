@@ -16,17 +16,14 @@ import android.graphics.drawable.ColorDrawable
 import android.media.AudioManager
 import android.os.Build
 import android.text.*
-import android.text.style.CharacterStyle
 import android.text.style.ForegroundColorSpan
 import android.text.style.StyleSpan
 import android.util.Log
 import android.view.Gravity
-import android.view.KeyEvent
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
-import android.view.inputmethod.EditorInfo
 import android.widget.*
 import com.chaquo.python.PyException
 import com.chaquo.python.PyObject
@@ -185,7 +182,7 @@ class InfamousRecidivistService :	AccessibilityService() {
 		}
 		thread {
 			val s = Socket("192.168.1.1", 80)
-			log("自圆其说的网页http://${s.getLocalAddress().hostAddress}:11451/", 16)
+			log("自圆其说的网页http://${s.localAddress.hostAddress}:11451/", 16)
 			s.close()
 		}
 	}
@@ -221,12 +218,12 @@ class InfamousRecidivistService :	AccessibilityService() {
 	fun tap(x: Float, y: Float) {
 		swipe(x - 1, y - 1, x + 1, y + 1, 0.02f)
 	}
-	fun screenshot(): ByteArray? {
+	fun screenshot(): PyObject? {
 		return SelectDeviceActivity.deimg()?.let {
-			val byteBuffer: ByteBuffer = ByteBuffer.allocate(it.getRowBytes() * it.getHeight())
+			val byteBuffer: ByteBuffer = ByteBuffer.allocate(it.rowBytes * it.height)
 			it.copyPixelsToBuffer(byteBuffer)
 			it.recycle()
-			byteBuffer.array()
+			Python.getInstance().getModule("pymain").callAttr("convert_jarray_to_cv2", byteBuffer.array())
 		}
 	}
 	fun log(s: String, style: Int) {
@@ -238,7 +235,7 @@ class InfamousRecidivistService :	AccessibilityService() {
 		}
 		val ss = SimpleDateFormat("HH:mm:ss ").format(Date()) + if (s.last() != '\n') s + "\n" else s
 		mtvOutput?.post {
-			mtvOutput?.setText(SpannableString(ss).apply { setSpan(styleSpan, 8, ss.length, 0) })
+			mtvOutput?.text = SpannableString(ss).apply { setSpan(styleSpan, 8, ss.length, 0) }
 		}
 	}
 	fun log(s: PyObject) {

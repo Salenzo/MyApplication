@@ -26,17 +26,22 @@ import android.widget.*
 import com.chaquo.python.PyException
 import com.chaquo.python.PyObject
 import com.chaquo.python.Python
-import com.koushikdutta.async.http.Multimap
-import com.koushikdutta.async.http.body.AsyncHttpRequestBody
+import com.koushikdutta.async.http.body.UrlEncodedFormBody
 import com.koushikdutta.async.http.server.AsyncHttpServer
 import java.io.File
+import java.io.IOException
 import java.net.DatagramSocket
 import java.net.InetAddress
 import java.nio.ByteBuffer
+import java.nio.file.FileVisitResult
+import java.nio.file.Files
+import java.nio.file.SimpleFileVisitor
+import java.nio.file.attribute.BasicFileAttributes
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.collections.ArrayDeque
 import kotlin.concurrent.thread
+import kotlin.io.path.deleteExisting
 
 
 @SuppressLint("SetTextI18n", "ObsoleteSdkInt")
@@ -212,28 +217,60 @@ class InfamousRecidivistService :	AccessibilityService() {
 			gravity = Gravity.BOTTOM
 		})
 
-		val f = File(filesDir, "app.py")
+		val codeDir = File(filesDir, "py")
+		codeDir.mkdir()
+		val f = File(codeDir, "app.py")
 		if (!f.exists()) f.writeBytes(byteArrayOf())
 		startPython()
-		val template = "<!DOCTYPE html>\n<title>Mansfield</title>" +
-			"<style>*{margin:0;padding:0}textarea{border:0;width:100vw;height:100vh}</style>" +
-			"<form method=post><input type=submit><textarea name=code>"
 		mServer = AsyncHttpServer().apply {
+			// 路由地址参数是自带一个^锚定字符串开头的正则表达式。
 			this.get("/") { request, response ->
-				response.send(template + f.readText().replace("&", "&amp;").replace("<", "&lt;"))
+				response.send("<!DOCTYPE html>\n<title>Mansfield</title>" +
+					"<style>*{margin:0;padding:0}textarea{border:0;width:99vw;height:99vh}</style>" +
+					"<form method=post><input name=filename value=app.py><input type=submit><a href=reload>运行</a><textarea name=contents>" +
+					f.readText().replace("&", "&amp;").replace("<", "&lt;")
+				)
 			}
 			this.post("/") { request, response ->
 				response.send("<!DOCTYPE html>\n<title>Breaking news</title>" +
-					"<a href=\"/\">返回</a><p style=white-space:pre>成功" + try {
-						val code = request.getBody<AsyncHttpRequestBody<Multimap?>>().get()!!["code"]!![0]
-						f.writeText(code)
-						stopPython()
-						startPython()
+					"<a href=.>返回</a><p style=white-space:pre>成功" + try {
+						val map = request.getBody<UrlEncodedFormBody>().get()
+						val filename = map["filename"]!![0]
+						val contents = map["contents"]?.get(0)?.toByteArray() ?: Base64.getDecoder().decode(map["base64"]!![0])
+						Log.d("shit", filename)
+						val file = File(codeDir, filename)
+						file.parentFile!!.mkdirs()
+						file.writeBytes(contents)
 						"了！"
 					} catch (e: Exception) {
+						response.code(500)
 						"搞出" + e.toString() + "\n\n" + f.readText()
 					}.replace("&", "&amp;").replace("<", "&lt;")
 				)
+			}
+			this.get("/reload") { request, response ->
+				stopPython()
+				startPython()
+				response.send("<!DOCTYPE html>\n<title>Breaking news</title>" +
+					"<a href=..>成了！</a>")
+			}
+			this.get("/reset") { request, response ->
+				Files.walkFileTree(codeDir.toPath(), object : SimpleFileVisitor<java.nio.file.Path>() {
+					override fun visitFile(file: java.nio.file.Path, attrs: BasicFileAttributes?): FileVisitResult {
+						Files.delete(file)
+						return FileVisitResult.CONTINUE
+					}
+					override fun postVisitDirectory(dir: java.nio.file.Path, e: IOException?): FileVisitResult {
+						e?.let { throw it }
+						dir.deleteExisting()
+						return FileVisitResult.CONTINUE
+					}
+				})
+				codeDir.mkdir()
+				f.writeBytes(byteArrayOf())
+				stopPython()
+				response.send("<!DOCTYPE html>\n<title>Breaking news</title>" +
+					"<a href=..>呜呼……</a>")
 			}
 			listen(11451)
 		}
@@ -256,6 +293,10 @@ class InfamousRecidivistService :	AccessibilityService() {
 		try {
 			Python.getInstance().getModule("pymain").callAttr("kill_thread", mPythonThreadId)
 		} catch (_: PyException) {
+		}
+		try {
+			mPythonThread?.join()
+		} catch (_: InterruptedException) {
 		}
 		mPythonThread = null
 	}

@@ -18,9 +18,10 @@ android {
 		}
 		python {
 			pip {
-				install "chaquopy-crc32c"
 				//options "--index-url", "https://mirror.sjtu.edu.cn/pypi/web/simple"
 				install "opencv-contrib-python==4.5.1.48"
+				install "pillow"
+				install "kiwisolver" // 仓库里有，很神奇，就加了这个依赖。反正又没人在意APK是不是有114GB那么大。
 			}
 		}
 	}

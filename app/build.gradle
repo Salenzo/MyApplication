@@ -13,33 +13,33 @@ android {
 		targetSdkVersion 30
 		versionCode 2
 		versionName "0.0.4"
-        ndk {
-            abiFilters "armeabi-v7a", "x86"
-        }
-        python {
-            pip {
-                install "chaquopy-crc32c"
-                //options "--index-url", "https://mirror.sjtu.edu.cn/pypi/web/simple"
-                install "opencv-contrib-python==4.5.1.48"
-            }
-        }
-    }
-    compileOptions {
-        targetCompatibility 1.8
-        sourceCompatibility 1.8
-    }
-    buildTypes {
-        release {
-            minifyEnabled false
-        }
-    }
-    kotlinOptions {
-        jvmTarget = '1.8' // Java 7 not supported by kotlinOptions jvmTarget
-    }
+		ndk {
+			abiFilters "armeabi-v7a", "x86"
+		}
+		python {
+			pip {
+				install "chaquopy-crc32c"
+				//options "--index-url", "https://mirror.sjtu.edu.cn/pypi/web/simple"
+				install "opencv-contrib-python==4.5.1.48"
+			}
+		}
+	}
+	compileOptions {
+		targetCompatibility 1.8
+		sourceCompatibility 1.8
+	}
+	buildTypes {
+		release {
+			minifyEnabled false
+		}
+	}
+	kotlinOptions {
+		jvmTarget = '1.8' // Java 7 not supported by kotlinOptions jvmTarget
+	}
 }
 
 dependencies {
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
-    implementation "androidx.constraintlayout:constraintlayout:2.1.2"
-    implementation 'com.koushikdutta.async:androidasync:3.1.0'
+	implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
+	implementation "androidx.constraintlayout:constraintlayout:2.1.2"
+	implementation 'com.koushikdutta.async:androidasync:3.1.0'
 }

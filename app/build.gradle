@@ -3,13 +3,16 @@ apply plugin: 'kotlin-android'
 apply plugin: 'com.chaquo.python'
 
 android {
-    compileSdkVersion 31
-    defaultConfig {
-        applicationId "io.github.salenzo.myapplication"
-        minSdkVersion 28
-        targetSdkVersion 31
-        versionCode 2
-        versionName "0.0.3"
+	// 哪个小子让我升级到API level 31的？出来指定没有好果子吃嗷
+	// 昨天JB不知道怎么就崩了，排查老半天都不知道怎么回事，缓存清了个遍，SDK装了个新版本的都没解决，结果git stash一下再pop回来就好了，气死我了。
+	// 升级完快速文档也坏了。一查，原来是SDK版本太新，源码没有发布。无语子
+	compileSdkVersion 30
+	defaultConfig {
+		applicationId "io.github.salenzo.myapplication"
+		minSdkVersion 24
+		targetSdkVersion 30
+		versionCode 2
+		versionName "0.0.4"
         ndk {
             abiFilters "armeabi-v7a", "x86"
         }

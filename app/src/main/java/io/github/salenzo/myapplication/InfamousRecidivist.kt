@@ -30,7 +30,8 @@ import com.koushikdutta.async.http.Multimap
 import com.koushikdutta.async.http.body.AsyncHttpRequestBody
 import com.koushikdutta.async.http.server.AsyncHttpServer
 import java.io.File
-import java.net.Socket
+import java.net.DatagramSocket
+import java.net.InetAddress
 import java.nio.ByteBuffer
 import java.text.SimpleDateFormat
 import java.util.*
@@ -56,23 +57,26 @@ class InfamousRecidivistService :	AccessibilityService() {
 		// 点按即可了解详情或停止应用。
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
 			getSystemService(NotificationManager::class.java).createNotificationChannel(NotificationChannel("２５５６５", "迫真传奇重犯正在运行", NotificationManager.IMPORTANCE_DEFAULT))
+			startForeground(25565, Notification.Builder(this, "２５５６５").build())
 		}
-		startForeground(25565, Notification.Builder(this, "２５５６５").build())
 
 		val wm = getSystemService(WINDOW_SERVICE) as WindowManager
-		wm.addView(LinearLayout(this).apply {
-			mllTouch = this
+		mllTouch = LinearLayout(this).apply {
 			layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT)
 			background = ColorDrawable(0x66ccffff)
 			setOnTouchListener { view, motionEvent ->
 				mtvOutput1?.text = "${motionEvent.rawX}, ${motionEvent.rawY}"
 				true
 			}
-		}, WindowManager.LayoutParams().apply {
-			type = WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY
-			format = PixelFormat.TRANSLUCENT
-			flags = flags or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-		})
+			visibility = ViewGroup.GONE
+		}
+		wm.addView(mllTouch, WindowManager.LayoutParams(
+			WindowManager.LayoutParams.MATCH_PARENT,
+			WindowManager.LayoutParams.MATCH_PARENT,
+			WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+			WindowManager.LayoutParams.FLAG_FULLSCREEN or WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+			PixelFormat.TRANSLUCENT
+		))
 		// Create an overlay and display the action bar
 		wm.addView(LinearLayout(this).apply {
 			layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
@@ -153,12 +157,13 @@ class InfamousRecidivistService :	AccessibilityService() {
 					}
 				}
 			})
-		}, WindowManager.LayoutParams().apply {
-			type = WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY
-			format = PixelFormat.TRANSLUCENT
-			flags = flags or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-			width = WindowManager.LayoutParams.WRAP_CONTENT
-			height = WindowManager.LayoutParams.WRAP_CONTENT
+		}, WindowManager.LayoutParams(
+			WindowManager.LayoutParams.WRAP_CONTENT,
+			WindowManager.LayoutParams.WRAP_CONTENT,
+			WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+			WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+			PixelFormat.TRANSLUCENT
+		).apply {
 			gravity = Gravity.TOP
 		})
 		wm.addView(LinearLayout(this).apply {
@@ -173,7 +178,7 @@ class InfamousRecidivistService :	AccessibilityService() {
 				mtvOutput1 = this
 				background = ColorDrawable(0x80ffa500.toInt())
 				setTextColor(Color.BLACK)
-				//visibility = ViewGroup.GONE
+				visibility = ViewGroup.GONE
 			})
 			addView(TextView(this@InfamousRecidivistService).apply {
 				mtvOutput2 = this
@@ -197,16 +202,17 @@ class InfamousRecidivistService :	AccessibilityService() {
 					setPadding(20, 4, 20, 4)
 				}
 			}
-		}, WindowManager.LayoutParams().apply {
-			type = WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY
-			format = PixelFormat.TRANSLUCENT
-			flags = flags or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
-			width = WindowManager.LayoutParams.MATCH_PARENT
-			height = WindowManager.LayoutParams.WRAP_CONTENT
+		}, WindowManager.LayoutParams(
+			WindowManager.LayoutParams.MATCH_PARENT,
+			WindowManager.LayoutParams.WRAP_CONTENT,
+			WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+			WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
+			PixelFormat.TRANSLUCENT
+		).apply {
 			gravity = Gravity.BOTTOM
 		})
 
-		val f = File(filesDir, "more.py")
+		val f = File(filesDir, "app.py")
 		if (!f.exists()) f.writeBytes(byteArrayOf())
 		startPython()
 		val template = "<!DOCTYPE html>\n<title>Mansfield</title>" +
@@ -232,9 +238,10 @@ class InfamousRecidivistService :	AccessibilityService() {
 			listen(11451)
 		}
 		thread {
-			val s = Socket("192.168.1.1", 80)
-			log("自圆其说的网页http://${s.localAddress.hostAddress}:11451/", 16)
-			s.close()
+			DatagramSocket().use {
+				it.connect(InetAddress.getByName("8.8.8.114"), 1919)
+				log("自圆其说：http://${it.localAddress.hostAddress}:11451/。", 16)
+			}
 		}
 	}
 
@@ -274,7 +281,7 @@ class InfamousRecidivistService :	AccessibilityService() {
 			val byteBuffer: ByteBuffer = ByteBuffer.allocate(it.rowBytes * it.height)
 			it.copyPixelsToBuffer(byteBuffer)
 			it.recycle()
-			Python.getInstance().getModule("pymain").callAttr("convert_jarray_to_cv2", byteBuffer.array())
+			Python.getInstance().getModule("pymain").callAttr("convert_jarray_to_cv2", byteBuffer.array(), 1920, 1080)
 		}
 	}
 	fun log(s: String, style: Int) {

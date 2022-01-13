@@ -61,7 +61,9 @@ class imgOper(object):
         bf = cv2.BFMatcher()
         matches = bf.knnMatch(descriptor1, descriptor2, k=2)
         good = [[m] for m, n in matches if m.distance < 0.75 * n.distance]
-        print('matched' if len(good) > 5 else 'template not matched')
+        # 如果好点个数不到4个，将无法取得变换矩阵，因此提前返回。
+        if len(good) < 6:
+            return (0, 0), (0, 0)
         list_kp1 = np.reshape([keypoint1[m.queryIdx].pt for [m] in good], (-1, 1, 2))
         list_kp2 = np.reshape([keypoint2[m.trainIdx].pt for [m] in good], (-1, 1, 2))
         quad = cv2.perspectiveTransform(np.float32([
@@ -79,17 +81,30 @@ class imgOper(object):
 #img = ADB.screenshot()
 #cv2.imwrite('F10.png', img)
 
-img = cv2.imread('F9.png')
-IMG = imgOper('F9.png')
-IMG.crop('b.png')
+#img = cv2.imread('F9.png')
+#IMG = imgOper('F9.png')
+#IMG.crop('b.png')
 #print(IMG.sift('b.png'))
 
 ImgO = imgOper('F9.png')
-#b, g, ImgO.img = cv2.split(ImgO.img)
+b, g, ImgO.img = cv2.split(ImgO.img)
+ImgO.img = cv2.resize(ImgO.img, (ImgO.img.shape[1] * 480 // ImgO.img.shape[0], 480), interpolation=cv2.INTER_LINEAR)
 #ret, ImgO.img = cv2.threshold(ImgO.img, 150, 255, cv2.THRESH_BINARY)
-ImgO.img = cv2.resize(ImgO.img, (ImgO.img.shape[:2][1] * 480 // ImgO.img.shape[:2][0], 480), interpolation = cv2.INTER_LINEAR)
-point = ImgO.sift('a.png')
-cv2.rectangle(ImgO.img, point[0], point[1], (64, 255, 192), thickness=2)
+((x0, x1), (y0, y1)) = ImgO.sift("a.png")
+((_, y2), (_, _)) = ImgO.sift("r.png")
+x0 = x0 - 3
+cost = []
+for y in range(y1 + 1, y2):
+    # 真正的计算机图形学家不需要imshow，都是用print看图像的。
+    #print("".join(map(lambda x: "1" if x >= 224 else "0", ImgO.img[y, x0 - 3:])))
+    transitions = np.where(np.diff(ImgO.img[y, x0:] + [0] >= 224))[0]
+    if len(transitions) > 1:
+        cost.append((transitions[1] - transitions[0]) / (ImgO.img.shape[1] - transitions[0] - x0))
+cost = 0.0 if len(cost) == 0 else np.median(cost)
+
+
+print(f"Cost = ?{cost}")
+#cv2.rectangle(ImgO.img, point[0], point[1], (192, 192, 192), thickness=2)
 cv2.imshow('矩形', ImgO.img)
 cv2.waitKey(0)
 print(point)

@@ -189,13 +189,13 @@ class InfamousRecidivistService :	AccessibilityService() {
 				mtvOutput2 = this
 				background = ColorDrawable(0xaa114514.toInt())
 				setTextColor(Color.WHITE)
-				//visibility = ViewGroup.GONE
+				visibility = ViewGroup.GONE
 			})
 			addView(TextView(this@InfamousRecidivistService).apply {
 				mtvOutput3 = this
 				background = ColorDrawable(0x89abcdef.toInt())
 				setTextColor(Color.BLACK)
-				//visibility = ViewGroup.GONE
+				visibility = ViewGroup.GONE
 			})
 			listOf(mtvOutput0, mtvOutput1, mtvOutput2, mtvOutput3).forEach {
 				with(it!!) {

@@ -3,11 +3,16 @@ import time
 from configparser import ConfigParser
 import cv2
 import numpy as np
+import hsv
 
 CFG = ConfigParser()
-CFG.read("config.ini")
-with open("config.ini", "w") as f:
+CFG.read('config.ini')
+with open('config.ini', 'w') as f:
     CFG.write(f)
+
+if 'adb' in globals():
+    def print(x):
+        adb.log(x)
 
 class imgOper(object):
     def __init__(self, origin_path):
@@ -49,7 +54,7 @@ class imgOper(object):
                 self.cut_img = self.img[min_y:min_y + height, min_x:min_x + width]
                 cv2.imshow('ROI', self.cut_img)
 
-    def sift(self, template_path):
+    def sift(self, template_path: str) -> Tuple[Tuple[int, int], Tuple[int, int]]:
         sift = cv2.SIFT_create()
         template = cv2.imread(template_path)
         template_height, template_width = template.shape[:2]
@@ -71,10 +76,10 @@ class imgOper(object):
             [template_width - 1, template_height - 1], [template_width - 1, 0]
         ]).reshape(-1, 1, 2), cv2.findHomography(list_kp1, list_kp2, cv2.RANSAC, 5.0)[0])
 
-        cv2.namedWindow('BFmatch', cv2.WINDOW_NORMAL)
-        cv2.resizeWindow('BFmatch', self.height, self.width)
-        cv2.imshow('BFmatch', cv2.drawMatchesKnn(template, keypoint1, self.img, keypoint2, good, None, flags=2))
-        cv2.waitKey(0)
+        #cv2.namedWindow('BFmatch', cv2.WINDOW_NORMAL)
+        #cv2.resizeWindow('BFmatch', self.height, self.width)
+        #cv2.imshow('BFmatch', cv2.drawMatchesKnn(template, keypoint1, self.img, keypoint2, good, None, flags=2))
+        #cv2.waitKey(0)
 
         return (int(min(quad[:, 0, 0])), int(min(quad[:, 0, 1]))), (int(max(quad[:, 0, 0])), int(max(quad[:, 0, 1])))
 
@@ -90,24 +95,25 @@ ImgO = imgOper('F9.png')
 b, g, ImgO.img = cv2.split(ImgO.img)
 ImgO.img = cv2.resize(ImgO.img, (ImgO.img.shape[1] * 480 // ImgO.img.shape[0], 480), interpolation=cv2.INTER_LINEAR)
 #ret, ImgO.img = cv2.threshold(ImgO.img, 150, 255, cv2.THRESH_BINARY)
-((x0, x1), (y0, y1)) = ImgO.sift("a.png")
-((_, y2), (_, _)) = ImgO.sift("r.png")
+((x0, x1), (y0, y1)) = ImgO.sift('a.png')
+((_, y2), (_, _)) = ImgO.sift('r.png')
 x0 = x0 - 3
 cost = []
 for y in range(y1 + 1, y2):
     # 真正的计算机图形学家不需要imshow，都是用print看图像的。
-    #print("".join(map(lambda x: "1" if x >= 224 else "0", ImgO.img[y, x0 - 3:])))
+    print(''.join(map(lambda x: '1' if x >= 224 else '0', ImgO.img[y, x0 - 3:])))
     transitions = np.where(np.diff(ImgO.img[y, x0:] + [0] >= 224))[0]
     if len(transitions) > 1:
         cost.append((transitions[1] - transitions[0]) / (ImgO.img.shape[1] - transitions[0] - x0))
 cost = 0.0 if len(cost) == 0 else np.median(cost)
 
 
-print(f"Cost = ?{cost}")
+print(f'Cost = ?{cost}')
+print(hsv.hsv())
+#point = ImgO.sift('r.png')
 #cv2.rectangle(ImgO.img, point[0], point[1], (192, 192, 192), thickness=2)
-cv2.imshow('矩形', ImgO.img)
-cv2.waitKey(0)
-print(point)
+#cv2.imshow('矩形', ImgO.img)
+#cv2.waitKey(0)
 
 #cv2.namedWindow('image', cv2.WINDOW_NORMAL)
 #cv2.resizeWindow('image', ImgO.height, ImgO.width)

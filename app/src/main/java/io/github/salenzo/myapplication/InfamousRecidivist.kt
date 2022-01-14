@@ -7,10 +7,7 @@ import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.graphics.Color
-import android.graphics.Path
-import android.graphics.PixelFormat
-import android.graphics.Typeface
+import android.graphics.*
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.ColorDrawable
 import android.media.AudioManager
@@ -69,10 +66,14 @@ class InfamousRecidivistService :	AccessibilityService() {
 		mllTouch = LinearLayout(this).apply {
 			layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT)
 			background = ColorDrawable(0x66ccffff)
-			setOnTouchListener { view, motionEvent ->
-				mtvOutput1?.text = "${motionEvent.rawX}, ${motionEvent.rawY}"
-				true
-			}
+			addView(ImageView(this@InfamousRecidivistService).apply {
+				layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+				scaleType = ImageView.ScaleType.CENTER_CROP
+				setOnTouchListener { view, motionEvent ->
+					mtvOutput1?.text = "${motionEvent.rawX}, ${motionEvent.rawY}"
+					true
+				}
+			})
 			visibility = ViewGroup.GONE
 		}
 		wm.addView(mllTouch, WindowManager.LayoutParams(
@@ -348,6 +349,18 @@ class InfamousRecidivistService :	AccessibilityService() {
 	}
 	fun log(s: PyObject) {
 		log(s.toString(), 1)
+	}
+	fun imshow(name: String, mat: PyObject) {
+		val shape = mat.get("shape")!!.asList()
+		val bitmap = Bitmap.createBitmap(
+			shape[1].toInt(), shape[0].toInt(),
+			Bitmap.Config.ARGB_8888
+		)
+		val buffer = Python.getInstance().getModule("pymain").callAttr("convert_cv2_to_1darray", mat).toJava(ByteArray::class.java)
+		bitmap.copyPixelsFromBuffer(ByteBuffer.wrap(buffer))
+		mtvOutput0?.post {
+			(mllTouch?.getChildAt(0) as ImageView?)?.setImageBitmap(bitmap)
+		}
 	}
 	private fun findScrollableNode(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {
 		val deque: ArrayDeque<AccessibilityNodeInfo> = ArrayDeque()

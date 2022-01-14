@@ -21,13 +21,17 @@ def kill_thread(tid):
 def convert_jarray_to_cv2(a, width, height):
     return cv2.cvtColor(np.array(a, dtype=np.uint8).reshape(height, width, 4), cv2.COLOR_BGRA2RGB)
 
+def convert_cv2_to_1darray(a):
+    return cv2.cvtColor(a.astype(np.uint8), cv2.COLOR_RGB2BGRA).flatten()
+
 def main(service):
     # 保证目标脚本在搜索路径中，以便其调用周围的模块文件。
+    global adb
     path = os.path.join(os.environ["HOME"], "py")
-    try:
-        sys.path.index(path)
-    except ValueError:
+    if "adb" not in globals():
+        adb = service
         sys.path.insert(0, path)
+        cv2.imshow = adb.imshow
     os.chdir(path)
     code = open("app.py").read()
     try:

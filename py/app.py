@@ -115,6 +115,7 @@ cost = 0.0 if len(cost) == 0 else np.median(cost)
 
 
 print(f'Cost = ?{cost}')
+cv2.imshow('wtf ok it works', cv2.imread('F9.png'))
 #point = ImgO.sift('r.png')
 #cv2.rectangle(ImgO.img, point[0], point[1], (192, 192, 192), thickness=2)
 #cv2.imshow('矩形', ImgO.img)

@@ -223,22 +223,31 @@ class InfamousRecidivistService :	AccessibilityService() {
 		if (!f.exists()) f.writeBytes(byteArrayOf())
 		startPython()
 		mServer = AsyncHttpServer().apply {
+			val htmlHeader = "<!DOCTYPE html>\n" +
+				"<title>Mansfield</title><meta charset=utf-8>\n" +
+				"<meta name=viewport content='width=device-width,initial-scale=1,viewport-fit=cover'>\n" +
+				"<meta http-equiv=X-UA-Compatible content='IE=edge'>\n"
 			// 路由地址参数是自带一个^锚定字符串开头的正则表达式。
 			this.get("/") { request, response ->
-				response.send("<!DOCTYPE html>\n<title>Mansfield</title>" +
+				response.send(htmlHeader +
 					"<style>*{margin:0;padding:0}textarea{border:0;width:99vw;height:99vh}</style>" +
-					"<form method=post><input name=filename value=app.py><input type=submit><a href=reload>运行</a><textarea name=contents>" +
+					"<form method=post><input name=filename value=app.py><input type=submit>\n" +
+					"<a href=reload>再运行</a>\n" +
+					"<a href=reset title=将会删除提交的所有文件，只留下空的app.py。 onclick=if(!confirm(title))event.preventDefault()>删光</a>" +
+					"<textarea name=contents>" +
 					f.readText().replace("&", "&amp;").replace("<", "&lt;")
 				)
 			}
 			this.post("/") { request, response ->
-				response.send("<!DOCTYPE html>\n<title>Breaking news</title>" +
+				response.send(htmlHeader +
 					"<a href=.>返回</a><p style=white-space:pre>成功" + try {
 						val map = request.getBody<UrlEncodedFormBody>().get()
 						val filename = map["filename"]!![0]
 						val contents = map["contents"]?.get(0)?.toByteArray() ?: Base64.getDecoder().decode(map["base64"]!![0])
-						Log.d("shit", filename)
 						val file = File(codeDir, filename)
+						if (!file.canonicalFile.startsWith(codeDir.canonicalFile)) {
+							throw SecurityException("你想从这py文件夹逃出去？")
+						}
 						file.parentFile!!.mkdirs()
 						file.writeBytes(contents)
 						"了！"
@@ -251,7 +260,7 @@ class InfamousRecidivistService :	AccessibilityService() {
 			this.get("/reload") { request, response ->
 				stopPython()
 				startPython()
-				response.send("<!DOCTYPE html>\n<title>Breaking news</title>" +
+				response.send(htmlHeader +
 					"<a href=..>成了！</a>")
 			}
 			this.get("/reset") { request, response ->
@@ -277,7 +286,7 @@ class InfamousRecidivistService :	AccessibilityService() {
 		thread {
 			DatagramSocket().use {
 				it.connect(InetAddress.getByName("8.8.8.114"), 1919)
-				log("自圆其说：http://${it.localAddress.hostAddress}:11451/。", 16)
+				log("不言自明：http://${it.localAddress.hostAddress}:11451/。", 16)
 			}
 		}
 	}

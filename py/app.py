@@ -1,9 +1,9 @@
 import os
+import sys
 import time
 from configparser import ConfigParser
 import cv2
 import numpy as np
-import hsv
 
 CFG = ConfigParser()
 CFG.read('config.ini')
@@ -11,8 +11,14 @@ with open('config.ini', 'w') as f:
     CFG.write(f)
 
 if 'adb' in globals():
-    def print(x):
-        adb.log(x)
+    def print(*objects, sep=' ', end='\n', file=sys.stdout, flush=False):
+        s = sep.join(map(str, objects)) + end
+        if file is sys.stdout or file is sys.stderr:
+            adb.log(s)
+        else:
+            file.write(s)
+            if flush:
+                file.flush()
 
 class imgOper(object):
     def __init__(self, origin_path):
@@ -54,7 +60,7 @@ class imgOper(object):
                 self.cut_img = self.img[min_y:min_y + height, min_x:min_x + width]
                 cv2.imshow('ROI', self.cut_img)
 
-    def sift(self, template_path: str) -> Tuple[Tuple[int, int], Tuple[int, int]]:
+    def sift(self, template_path: str): # -> Tuple[Tuple[int, int], Tuple[int, int]]
         sift = cv2.SIFT_create()
         template = cv2.imread(template_path)
         template_height, template_width = template.shape[:2]
@@ -109,7 +115,6 @@ cost = 0.0 if len(cost) == 0 else np.median(cost)
 
 
 print(f'Cost = ?{cost}')
-print(hsv.hsv())
 #point = ImgO.sift('r.png')
 #cv2.rectangle(ImgO.img, point[0], point[1], (192, 192, 192), thickness=2)
 #cv2.imshow('矩形', ImgO.img)

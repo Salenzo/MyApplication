@@ -1,6 +1,5 @@
 import cv2
 import numpy as np
-import math
 
 # 根据目标高度，锁定原图比例缩放。
 def resize(img, height, **kwargs):
@@ -58,7 +57,7 @@ def vanishing_point_y(homography, img2, img3):
     img2, img3 = [cv2.warpPerspective(img, homography, (width, height), flags=cv2.WARP_INVERSE_MAP) for img in [img2, img3]]
     img1 = cv2.inRange(cv2.cvtColor(cv2.absdiff(img2, img3), cv2.COLOR_BGR2GRAY), 1, 255)
     img1 = cv2.Canny(img1, 50, 200, None, 3)
-    lines = cv2.HoughLinesP(img1, 1, math.pi / 180, 50, None, height // 24, height // 12)
+    lines = cv2.HoughLinesP(img1, 1, np.pi / 180, 50, None, height // 24, height // 12)
     # 此后img1仅用来输出调试信息。
     img1 = cv2.cvtColor(img1, cv2.COLOR_GRAY2BGR)
     ys = []

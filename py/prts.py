@@ -1,3 +1,4 @@
+from urllib.request import HTTPPasswordMgrWithPriorAuth
 import cv2
 import numpy as np
 
@@ -16,9 +17,7 @@ def video_between_two(video_filename, img0, img1):
     video.release()
 
 # 从通常截图与选中干员的子弹时间中的截图推断选中干员带来的视角变化。
-def bullet_time_transform():
-    img0 = cv2.imread("b1.jpg")
-    img1 = cv2.imread("b2.jpg")
+def bullet_time_transform(img0, img1):
     height, width = img0.shape[:2]
     x0, y0 = height * 2 // 3, height // 12
     x1, y1 = width - height // 3, height * 4 // 5
@@ -34,8 +33,22 @@ def bullet_time_transform():
     homography, mask = cv2.findHomography(
         np.array([keypoint0[m.queryIdx].pt for m in matches]) / scale + (x0, y0),
         np.array([keypoint1[m.trainIdx].pt for m in matches]) / scale + (x0, y0),
-        cv2.RANSAC, 5.0
+        cv2.RANSAC
     )
     #video_between_two("114.mp4", cv2.warpPerspective(img0, homography, (width, height)), img1)
     return homography
-print(bullet_time_transform())
+
+def eee(img0, img1):
+    homography = bullet_time_transform(img0, img1)
+    height, width = img0.shape[:2]
+    x0, y0 = height * 2 // 3, height // 12
+    x1, y1 = width - height // 3, height * 4 // 5
+    img1 = cv2.warpPerspective(img1, homography, (width, height), flags=cv2.WARP_INVERSE_MAP)
+    img1 = cv2.divide(img1.astype(np.uint16) * 256, img0, dtype=cv2.CV_8U)
+    img1 = cv2.GaussianBlur(img1, (0, 0), 2)
+    img1 = cv2.inRange(img1, np.array([128, 255, 128], dtype=np.uint8), np.array([240, 255, 240], dtype=np.uint8))
+    cv2.imwrite("out11.png", img1[y0:y1, x0:x1])
+    #cv2.imshow("", img2)
+    #cv2.waitKey()
+
+print(eee(cv2.imread("b1.jpg"), cv2.imread("b2.jpg")))

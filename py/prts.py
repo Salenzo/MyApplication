@@ -1,4 +1,3 @@
-from itertools import combinations
 import cv2
 import numpy as np
 import math
@@ -31,7 +30,7 @@ def line_line_intersection(a0, b0, a1, b1):
     else:
         return None
 
-# 从通常截图与选中干员的子弹时间中的截图推断选中干员带来的视角变化。
+# 从通常截图img0与选中干员的子弹时间中的截图img1推断选中干员带来的视角变化。
 def bullet_time_transform(img0, img1):
     height, width = img0.shape[:2]
     x0, y0 = height * 2 // 3, height // 12
@@ -53,25 +52,27 @@ def bullet_time_transform(img0, img1):
     #video_between_two("114.mp4", cv2.warpPerspective(img0, homography, (width, height)), img1)
     return homography
 
-def eee(img0, img1, img2, img3):
-    homography = bullet_time_transform(img0, img1)
-    height, width = img0.shape[:2]
-    x0, y0 = height * 2 // 3, height // 12
-    x1, y1 = width - height // 3, height * 4 // 5
+# 从两张选中干员且暂停时的截图推断通常视角的透视消失点纵坐标。
+def vanishing_point_y(homography, img2, img3):
+    height, width = img2.shape[:2]
     img2, img3 = [cv2.warpPerspective(img, homography, (width, height), flags=cv2.WARP_INVERSE_MAP) for img in [img2, img3]]
     img1 = cv2.inRange(cv2.cvtColor(cv2.absdiff(img2, img3), cv2.COLOR_BGR2GRAY), 1, 255)
     img1 = cv2.Canny(img1, 50, 200, None, 3)
     lines = cv2.HoughLinesP(img1, 1, math.pi / 180, 50, None, height // 24, height // 12)
-    if lines is None:
-        lines = []
+    # 此后img1仅用来输出调试信息。
     img1 = cv2.cvtColor(img1, cv2.COLOR_GRAY2BGR)
-    print(lines)
-    for [l] in lines:
-        cv2.line(img1, (l[0], l[1]), (l[2], l[3]), (224, 175, 102), 3, cv2.LINE_AA)
-    points = [p for p in [line_line_intersection((l0[0], l0[1]), (l0[2], l0[3]), (l1[0], l1[1]), (l1[2], l1[3])) for l0, l1 in combinations([line for [line] in lines if abs(line[1] - line[3]) > 2], 2)] if p is not None and abs(p[0] - width // 2) < height // 240]
-    print(list(points))
-    cv2.imwrite("out11.png", img1)
-    #cv2.imshow("", img2)
-    #cv2.waitKey()
+    ys = []
+    for [[x0, y0, x1, y1]] in lines:
+        if abs(x0 - x1) > 2:
+            y = y0 + (width / 2 - x0) * (y1 - y0) / (x1 - x0)
+            if y < -height:
+                ys.append(y)
+                cv2.line(img1, (x0, y0), (x1, y1), (224, 175, 102), 3, cv2.LINE_AA)
+                cv2.putText(img1, f"{int(y)}", (x0, y0), cv2.FONT_HERSHEY_SIMPLEX, 1, (224, 175, 202), 2)
+    return np.median(ys)
 
-print(eee(cv2.imread("b1.png"), cv2.imread("b2.png"), cv2.imread("b3.png"), cv2.imread("b4.png")))
+img0 = cv2.imread("b1.png")
+img1 = cv2.imread("b2.png")
+img2 = cv2.imread("b3.png")
+img3 = cv2.imread("b4.png")
+print(vanishing_point_y(bullet_time_transform(img0, img1), img2, img3))

@@ -1,4 +1,4 @@
- # character_table.json
+# character_table.json
 
 ```javascript
 enum FormulaItemType {
@@ -168,7 +168,7 @@ _Cost = {
 
 ```javascript
 const _Id = oneOfType(['enemy1000_Gopro', 'enemy1000_Gopro3', 'enemy1001_Bigbo', 'enemy1003_Ncbow2', 'enemy1008_Ghost']);
-_SpawnOffset = {
+_Offset = {
 	"x": number,
 	"y": number,
 };
@@ -195,8 +195,8 @@ _Position = {
 		"map": arrayOf(arrayOf(number)),
 		"tiles": arrayOf({
 			"tileKey": oneOfType(['tileCorrosion', 'tileEnd', 'tileFloor', 'tileForbidden', 'tileRoad', 'tileStart', 'tileWall']),
-			"heightType": number,
-			"buildableType": number,
+			"heightType": (0=平地；1=高台),
+			"buildableType": (位域：1=可放置近战单位；2=可放置远程单位),
 			"passableMask": number,
 			"blackboard": arrayOf(_Blackboard)?,
 			"effects": any,
@@ -206,23 +206,23 @@ _Position = {
 		"width": number,
 		"height": number,
 	},
-	"tilesDisallowToLocate": arrayOf(any),
+	"tilesDisallowToLocate": [],
 	"runes": any,
 	"globalBuffs": any,
 	"routes": arrayOf({
 		"motionMode": number,
 		"startPosition": _Position,
 		"endPosition": _Position,
-		"spawnRandomRange": _SpawnOffset,
-		"spawnOffset": _SpawnOffset,
+		"spawnRandomRange": _Offset,
+		"spawnOffset": _Offset,
 		"checkpoints": arrayOf({
-		"type": number,
-		"time": number,
-		"position": _Position,
-		"reachOffset": _SpawnOffset,
-		"randomizeReachOffset": bool,
-		"reachDistance": number,
-	}),
+			"type": number,
+			"time": number,
+			"position": _Position,
+			"reachOffset": _Offset,
+			"randomizeReachOffset": bool,
+			"reachDistance": number,
+		}),
 		"allowDiagonalMove": bool,
 		"visitEveryTileCenter": bool,
 		"visitEveryNodeCenter": bool,
@@ -292,4 +292,14 @@ _Position = {
 	"excludeCharIdList": any,
 	"randomSeed": number,
 }
+```
+
+# One-liner
+
+暴力压行！
+
+这也能压？
+
+```python
+(lambda imp: imp("cv2").imwrite("GT-6.png", imp("numpy").array((lambda map_data: [[(lambda tile: tile["heightType"] << 7 | tile["buildableType"] << 5 | tile["passableMask"])(map_data["tiles"][tile_id]) for tile_id in row] for row in map_data["map"]])(imp("json").load(open("level_a001_06.json"))["mapData"]), dtype=imp("numpy").uint8)))(__import__) # 绘制GT-6地图到图像文件
 ```

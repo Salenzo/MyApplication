@@ -146,8 +146,43 @@ def draw_reseau(img, homography, shape):
         for col in range(shape[1] + 1):
             cv2.circle(img, points[row, col], 10, [row * 20, 255, col * 15], -1)
 
+def fractional_cost(img):
+    height = img.shape[0]
+    # 最佳判决门限：费用条亮色灰度255，暗色灰度67。
+    return np.mean(img[height * 181 // 240, -height // 6:] >= 160)
+
+def integer_cost(img):
+    height = img.shape[0]
+    # 曲线“_/”。
+    img = cv2.addWeighted(cv2.cvtColor(img[height * 41 // 60:height * 3 // 4, -height // 9:], cv2.COLOR_BGR2GRAY), 2, 255, -1, 0)
+    # 我可以从十六进制散列中直接读出原图，你也可以。
+    table = np.uint8([
+        [0x3c, 0x42, 0x81, 0x81, 0x81, 0x81, 0x42, 0x3c], # 0
+        [0xe0, 0xfc, 0xe7, 0xe0, 0xe0, 0xe0, 0xe0, 0xe0], # 1
+        [0x3c, 0xc3, 0x80, 0xc0, 0x60, 0x18, 0x06, 0xff], # 2
+        [0x7c, 0xc2, 0xc0, 0x70, 0x40, 0x80, 0xc3, 0x7c], # 3
+        [0x60, 0x70, 0x48, 0x44, 0x42, 0xff, 0x60, 0x60], # 4
+        [0x7e, 0x02, 0x02, 0x77, 0xc0, 0x80, 0xc3, 0x3e], # 5
+        [0x10, 0x08, 0x04, 0x66, 0x83, 0x81, 0xc3, 0x3c], # 6
+        [0xff, 0x40, 0x20, 0x30, 0x18, 0x08, 0x04, 0x02], # 7
+        [0x3c, 0x42, 0x42, 0x3c, 0x42, 0x81, 0x83, 0x7e], # 8
+        [0x3c, 0xc3, 0x81, 0x81, 0x66, 0x20, 0x10, 0x08], # 9
+    ])
+    phash = cv2.img_hash.AverageHash_create()
+    # 以字形连续原理切开每个数字。
+    value = 0
+    for x0, x1 in (np.where(np.diff(np.concatenate(([False], np.bitwise_or.reduce(img != 0, axis=0), [False]))))[0]).reshape(-1, 2):
+        # 裁切到最小包围框，然后用感知散列识别数字。
+        _, y0, _, h = cv2.boundingRect(img[:, x0:x1])
+        h = phash.compute(img[y0:y0 + h, x0:x1]).flatten()
+        value *= 10
+        value += np.argmin([phash.compare(g, h) for g in table])
+    return value
+
 def main():
+    cv2.namedWindow("", cv2.WINDOW_KEEPRATIO)
     img0 = cv2.imread("b1.png")
+    print(f"Cost = {integer_cost(img0) + fractional_cost(img0)}")
     img1 = cv2.imread("b2.png")
     img2 = cv2.imread("b3.png")
     img3 = cv2.imread("b4.png")
@@ -163,7 +198,6 @@ def main():
     homography[:, 1] *= 3
     draw_reseau(img0, homography, level.shape)
 
-    cv2.namedWindow("", cv2.WINDOW_KEEPRATIO)
     cv2.imshow("", img0)
     cv2.waitKey()
 

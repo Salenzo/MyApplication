@@ -13,4 +13,5 @@ Yet another (rubbish) dump-type app.
 - [Developing an Accessibility Service for Android](https://codelabs.developers.google.com/codelabs/developing-android-a11y-service/) and [#27 from another codelab](https://github.com/googlecodelabs/android-accessibility/issues/27)
 - Chaquopy [#456](https://github.com/chaquo/chaquopy/issues/456)
 - [Getting the IP address of the current machine using Java](https://stackoverflow.com/a/38342964)
+- [I just skipped a great amount of dull work by generating hundreds of lines of JavaScript proptypes with @quicktype](https://app.quicktype.io/)
 - [明日方舟伤害曲线模拟器](https://github.com/FallCicada/ArknightsDamageCurve)

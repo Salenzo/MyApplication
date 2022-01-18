@@ -1,6 +1,4 @@
-from distutils.command.build_clib import build_clib
 import json
-from sys import flags
 import cv2
 import numpy as np
 
@@ -123,7 +121,7 @@ def perspective(vanishing_point_y, template, img1):
     img0 = cv2.warpPerspective(img1, homography, (width, height), flags=cv2.WARP_INVERSE_MAP)
     # 获取矩形包围框，按包围框计算透视矩阵。
     x, y, w, h = cv2.boundingRect(template)
-    x0, y0, w0, h0 = cv2.boundingRect(img0)
+    x0, y0, w0, h0 = cv2.boundingRect(cv2.morphologyEx(img0, cv2.MORPH_OPEN, np.ones((5, 5), dtype=np.uint8)))
     homography, _ = cv2.findHomography(
         np.array([[x, y], [x, y + h], [x + w, y + h], [x + w, y]]),
         cv2.perspectiveTransform(
@@ -134,14 +132,18 @@ def perspective(vanishing_point_y, template, img1):
     )
     return homography
 
-#rs = [1 / (y - vanishing_point_y) for y in possible_grid_ys]
-#for i in range(2, img.shape[0] + 2):
-#    np.linspace(rs[0], rs[-1], i)
-#a = np.zeros(1080, dtype=np.bool8)
-#a[possible_grid_ys] = True
-#a = np.fft.fft(a)
-
-np.array([False, True], dtype=np.uint8) * 255
+# 在图上绘制算得的网格线，用于调试。
+def draw_reseau(img, homography, shape):
+    points = np.int32(cv2.perspectiveTransform(np.float32(
+        [[[col, row*3] for col in range(shape[1] + 1)] for row in range(shape[0] + 1)]
+    ), homography))
+    for row in range(shape[0] + 1):
+        cv2.line(img, points[row, 0], points[row, shape[1]], [row * 20, 192, 192], 5)
+    for col in range(shape[1] + 1):
+        cv2.line(img, points[0, col], points[shape[0], col], [192, 192, col * 15], 5)
+    for row in range(shape[0] + 1):
+        for col in range(shape[1] + 1):
+            cv2.circle(img, points[row, col], 10, [row * 20, 255, col * 15], -1)
 
 img0 = cv2.imread("b1.png")
 img1 = cv2.imread("b2.png")
@@ -154,15 +156,9 @@ level = read_level("level_a001_06.json")
 template = np.roll(np.repeat(cv2.compare(cv2.bitwise_and(level, 128), 0, cv2.CMP_NE), 3, axis=0), -1, axis=0)
 template[-1, :] = 0
 template = cv2.subtract(np.repeat(cv2.compare(cv2.bitwise_and(level, 32), 0, cv2.CMP_NE), 3, axis=0), template)
+homography = perspective(vanishing_point_y(mask), template, mask)
+draw_reseau(img0, homography, level.shape)
 
 cv2.namedWindow("", cv2.WINDOW_KEEPRATIO)
-psrc = cv2.cvtColor(cv2.imread("psrc.png"), cv2.COLOR_BGR2GRAY)
-pp=perspective(vanishing_point_y(mask), template, mask)
-ii=cv2.imread("b1.png")
-for row in range(8+1):
-    for col in range(11+1):
-        cv2.circle(ii,     np.int32(cv2.perspectiveTransform(np.float32([[[col, row*3]]]), pp)[0,0])    ,  10,[row*50,255,col*20],5)
-
-cv2.imshow("", ii)
+cv2.imshow("", img0)
 cv2.waitKey()
-

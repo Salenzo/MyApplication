@@ -109,6 +109,7 @@ def read_level(filename):
     return a
 
 # 按消失点解除图像的透视，再用矩形包围框确定缩放和平移量，产生从地图数据到通常视角的透视矩阵。
+# template是二值地图数据，img1是二值可放置位视图。
 def perspective(vanishing_point_y, template, img1):
     height, width = img1.shape[:2]
     # 基于可放置位不会出现在偏僻地的假设，此处的透视反变换将丢弃左上和右上的像素。
@@ -121,7 +122,7 @@ def perspective(vanishing_point_y, template, img1):
     img0 = cv2.warpPerspective(img1, homography, (width, height), flags=cv2.WARP_INVERSE_MAP)
     # 获取矩形包围框，按包围框计算透视矩阵。
     x, y, w, h = cv2.boundingRect(template)
-    x0, y0, w0, h0 = cv2.boundingRect(cv2.morphologyEx(img0, cv2.MORPH_OPEN, np.ones((5, 5), dtype=np.uint8)))
+    x0, y0, w0, h0 = cv2.boundingRect(img0)
     homography, _ = cv2.findHomography(
         np.array([[x, y], [x, y + h], [x + w, y + h], [x + w, y]]),
         cv2.perspectiveTransform(
@@ -135,7 +136,7 @@ def perspective(vanishing_point_y, template, img1):
 # 在图上绘制算得的网格线，用于调试。
 def draw_reseau(img, homography, shape):
     points = np.int32(cv2.perspectiveTransform(np.float32(
-        [[[col, row*3] for col in range(shape[1] + 1)] for row in range(shape[0] + 1)]
+        [[[col, row] for col in range(shape[1] + 1)] for row in range(shape[0] + 1)]
     ), homography))
     for row in range(shape[0] + 1):
         cv2.line(img, points[row, 0], points[row, shape[1]], [row * 20, 192, 192], 5)
@@ -150,13 +151,15 @@ img1 = cv2.imread("b2.png")
 img2 = cv2.imread("b3.png")
 img3 = cv2.imread("b4.png")
 mask = buildable_mask(bullet_time_transform(img0, img1), img2, img3)
-print(1)
 level = read_level("level_a001_06.json")
 
-template = np.roll(np.repeat(cv2.compare(cv2.bitwise_and(level, 128), 0, cv2.CMP_NE), 3, axis=0), -1, axis=0)
+# 高台可能遮挡可部署位，因此寻找不可放置近战单位的高台地形并上移⅓格。
+# template是每格图块占用三行一列的矩阵，求出的透视矩阵y分量还需变换。
+template = np.roll(np.repeat(cv2.compare(cv2.bitwise_and(level, 128 | 32), 128, cv2.CMP_EQ), 3, axis=0), -1, axis=0)
 template[-1, :] = 0
 template = cv2.subtract(np.repeat(cv2.compare(cv2.bitwise_and(level, 32), 0, cv2.CMP_NE), 3, axis=0), template)
 homography = perspective(vanishing_point_y(mask), template, mask)
+homography[:, 1] *= 3
 draw_reseau(img0, homography, level.shape)
 
 cv2.namedWindow("", cv2.WINDOW_KEEPRATIO)

@@ -146,22 +146,25 @@ def draw_reseau(img, homography, shape):
         for col in range(shape[1] + 1):
             cv2.circle(img, points[row, col], 10, [row * 20, 255, col * 15], -1)
 
-img0 = cv2.imread("b1.png")
-img1 = cv2.imread("b2.png")
-img2 = cv2.imread("b3.png")
-img3 = cv2.imread("b4.png")
-mask = buildable_mask(bullet_time_transform(img0, img1), img2, img3)
-level = read_level("level_a001_06.json")
+def main():
+    img0 = cv2.imread("b1.png")
+    img1 = cv2.imread("b2.png")
+    img2 = cv2.imread("b3.png")
+    img3 = cv2.imread("b4.png")
+    mask = buildable_mask(bullet_time_transform(img0, img1), img2, img3)
+    level = read_level("level_a001_06.json")
 
-# 高台可能遮挡可部署位，因此寻找不可放置近战单位的高台地形并上移⅓格。
-# template是每格图块占用三行一列的矩阵，求出的透视矩阵y分量还需变换。
-template = np.roll(np.repeat(cv2.compare(cv2.bitwise_and(level, 128 | 32), 128, cv2.CMP_EQ), 3, axis=0), -1, axis=0)
-template[-1, :] = 0
-template = cv2.subtract(np.repeat(cv2.compare(cv2.bitwise_and(level, 32), 0, cv2.CMP_NE), 3, axis=0), template)
-homography = perspective(vanishing_point_y(mask), template, mask)
-homography[:, 1] *= 3
-draw_reseau(img0, homography, level.shape)
+    # 高台可能遮挡可部署位，因此寻找不可放置近战单位的高台地形并上移⅓格。
+    # template是每格图块占用三行一列的矩阵，求出的透视矩阵y分量还需变换。
+    template = np.roll(np.repeat(cv2.compare(cv2.bitwise_and(level, 128 | 32), 128, cv2.CMP_EQ), 3, axis=0), -1, axis=0)
+    template[-1, :] = 0
+    template = cv2.subtract(np.repeat(cv2.compare(cv2.bitwise_and(level, 32), 0, cv2.CMP_NE), 3, axis=0), template)
+    homography = perspective(vanishing_point_y(mask), template, mask)
+    homography[:, 1] *= 3
+    draw_reseau(img0, homography, level.shape)
 
-cv2.namedWindow("", cv2.WINDOW_KEEPRATIO)
-cv2.imshow("", img0)
-cv2.waitKey()
+    cv2.namedWindow("", cv2.WINDOW_KEEPRATIO)
+    cv2.imshow("", img0)
+    cv2.waitKey()
+
+main()

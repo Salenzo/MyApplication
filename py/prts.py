@@ -1,4 +1,6 @@
+from distutils.command.build_clib import build_clib
 import json
+from sys import flags
 import cv2
 import numpy as np
 
@@ -60,7 +62,7 @@ def bullet_time_transform(img0, img1):
     keypoint0, descriptor0 = sift.detectAndCompute(reduced_img0, None)
     keypoint1, descriptor1 = sift.detectAndCompute(reduced_img1, None)
     matches = cv2.BFMatcher().match(descriptor0, descriptor1)
-    homography, mask = cv2.findHomography(
+    homography, _ = cv2.findHomography(
         np.array([keypoint0[m.queryIdx].pt for m in matches]) / scale + (x0, y0),
         np.array([keypoint1[m.trainIdx].pt for m in matches]) / scale + (x0, y0),
         cv2.RANSAC
@@ -68,14 +70,17 @@ def bullet_time_transform(img0, img1):
     #video_between_two("114.mp4", cv2.warpPerspective(img0, homography, (width, height)), img1)
     return homography
 
-# 从两张选中干员且暂停时的截图推断通常视角的透视消失点纵坐标和可能的水平网格线纵坐标列表。
-# 暂停时，提示可放置位的绿色填充仍在闪烁，借此找到可部署地块。
+# 从两张选中干员且暂停时的截图找出闪烁的可部署地块的二值图像。
 # homography是选中干员带来的视角变化。
-def vanishing_point_y_and_possible_grid_ys(homography, img2, img3):
+def buildable_mask(homography, img2, img3):
     height, width = img2.shape[:2]
     # 先反变换到通常视角，再比较两张图的不同之处，以避免反变换抗锯齿使得得到的图像不是二值的。
     img2, img3 = [cv2.warpPerspective(img, homography, (width, height), flags=cv2.WARP_INVERSE_MAP) for img in [img2, img3]]
-    img1 = cv2.inRange(cv2.cvtColor(cv2.absdiff(img2, img3), cv2.COLOR_BGR2GRAY), 1, 255)
+    return cv2.inRange(cv2.cvtColor(cv2.absdiff(img2, img3), cv2.COLOR_BGR2GRAY), 1, 255)
+
+# 根据任意地块的二值图像推断通常视角的透视消失点纵坐标。
+def vanishing_point_y(img1):
+    height, width = img1.shape[:2]
     # 检测边缘，寻找线段的标准做法。
     img1 = cv2.Canny(img1, 50, 200, None, 3)
     lines = cv2.HoughLinesP(img1, 1, np.pi / 180, 50, None, height // 24, height // 12)
@@ -83,7 +88,6 @@ def vanishing_point_y_and_possible_grid_ys(homography, img2, img3):
     # 此后img1仅用来输出调试信息。
     img1 = cv2.cvtColor(img1, cv2.COLOR_GRAY2BGR)
     vanishing_point_ys = []
-    possible_grid_ys = []
     for [[x0, y0, x1, y1]] in lines:
         if abs(x0 - x1) > 3:
             y = y0 + (width / 2 - x0) * (y1 - y0) / (x1 - x0)
@@ -91,12 +95,7 @@ def vanishing_point_y_and_possible_grid_ys(homography, img2, img3):
                 vanishing_point_ys.append(y)
                 cv2.line(img1, (x0, y0), (x1, y1), (224, 175, 102), 3, cv2.LINE_AA)
                 cv2.putText(img1, f"{int(y)}", (x0, y0), cv2.FONT_HERSHEY_SIMPLEX, 1, (224, 175, 202), 2)
-        if abs(y0 - y1) < 3:
-            y = (y0 + y1) / 2
-            cv2.line(img1, (x0, y0), (x1, y1), (124, 175, 2), 3, cv2.LINE_AA)
-            cv2.putText(img1, str(y), (x0, y0), cv2.FONT_HERSHEY_TRIPLEX, 1, (224, 255, 222), 2)
-            possible_grid_ys.append(y)
-    return np.median(vanishing_point_ys), average_nearby_numbers(possible_grid_ys, 5)
+    return np.median(vanishing_point_ys)
 
 # 转换JSON格式的关卡文件到灰度图像。
 # 像素值是位域：128 = 高台地形；64 = 可放置远程单位；32 = 可放置近战单位；2 = 可通行飞行单位（猜想）；1 = 可通行地面单位。
@@ -111,14 +110,59 @@ def read_level(filename):
         a[row, col] = tile["heightType"] << 7 | tile["buildableType"] << 5 | tile["passableMask"]
     return a
 
+# 按消失点解除图像的透视，再用矩形包围框确定缩放和平移量，产生从地图数据到通常视角的透视矩阵。
+def perspective(vanishing_point_y, template, img1):
+    height, width = img1.shape[:2]
+    # 基于可放置位不会出现在偏僻地的假设，此处的透视反变换将丢弃左上和右上的像素。
+    inset = width / 2 * height / (height - vanishing_point_y)
+    homography, _ = cv2.findHomography(
+        np.array([[0, 0], [0, height], [width, height], [width, 0]]),
+        np.array([[inset, 0], [0, height], [width, height], [width - inset, 0]]),
+        0
+    )
+    img0 = cv2.warpPerspective(img1, homography, (width, height), flags=cv2.WARP_INVERSE_MAP)
+    # 获取矩形包围框，按包围框计算透视矩阵。
+    x, y, w, h = cv2.boundingRect(template)
+    x0, y0, w0, h0 = cv2.boundingRect(img0)
+    homography, _ = cv2.findHomography(
+        np.array([[x, y], [x, y + h], [x + w, y + h], [x + w, y]]),
+        cv2.perspectiveTransform(
+            np.float32([[[x0, y0]], [[x0, y0 + h0]], [[x0 + w0, y0 + h0]], [[x0 + w0, y0]]]),
+            homography
+        ),
+        0
+    )
+    return homography
+
+#rs = [1 / (y - vanishing_point_y) for y in possible_grid_ys]
+#for i in range(2, img.shape[0] + 2):
+#    np.linspace(rs[0], rs[-1], i)
+#a = np.zeros(1080, dtype=np.bool8)
+#a[possible_grid_ys] = True
+#a = np.fft.fft(a)
+
 np.array([False, True], dtype=np.uint8) * 255
 
 img0 = cv2.imread("b1.png")
 img1 = cv2.imread("b2.png")
 img2 = cv2.imread("b3.png")
 img3 = cv2.imread("b4.png")
-print(vanishing_point_y_and_possible_grid_ys(bullet_time_transform(img0, img1), img2, img3), 1)
+mask = buildable_mask(bullet_time_transform(img0, img1), img2, img3)
+print(1)
+level = read_level("level_a001_06.json")
+
+template = np.roll(np.repeat(cv2.compare(cv2.bitwise_and(level, 128), 0, cv2.CMP_NE), 3, axis=0), -1, axis=0)
+template[-1, :] = 0
+template = cv2.subtract(np.repeat(cv2.compare(cv2.bitwise_and(level, 32), 0, cv2.CMP_NE), 3, axis=0), template)
+
 cv2.namedWindow("", cv2.WINDOW_KEEPRATIO)
-cv2.imshow("", cv2.resize(cv2.compare(cv2.bitwise_and(read_level("level_a001_06.json"), 32), 0, cv2.CMP_NE), None, fx=16, fy=16, interpolation=cv2.INTER_NEAREST))
+psrc = cv2.cvtColor(cv2.imread("psrc.png"), cv2.COLOR_BGR2GRAY)
+pp=perspective(vanishing_point_y(mask), template, mask)
+ii=cv2.imread("b1.png")
+for row in range(8+1):
+    for col in range(11+1):
+        cv2.circle(ii,     np.int32(cv2.perspectiveTransform(np.float32([[[col, row*3]]]), pp)[0,0])    ,  10,[row*50,255,col*20],5)
+
+cv2.imshow("", ii)
 cv2.waitKey()
 

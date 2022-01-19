@@ -94,6 +94,7 @@ def vanishing_point_y(img1):
                 cv2.line(img1, (x0, y0), (x1, y1), (224, 175, 102), 3, cv2.LINE_AA)
                 cv2.putText(img1, f"{int(y)}", (x0, y0), cv2.FONT_HERSHEY_SIMPLEX, 1, (224, 175, 202), 2)
     return np.median(vanishing_point_ys)
+    # 实际上，空间地面上间隔相等的水平线，透视后仍为水平线，其到消失点距离的倒数之差也相等。
 
 # 转换JSON格式的关卡文件到灰度图像。
 # 像素值是位域：128 = 高台地形；64 = 可放置远程单位；32 = 可放置近战单位；2 = 可通行飞行单位（猜想）；1 = 可通行地面单位。
@@ -193,6 +194,19 @@ def fractional_cost(img):
 def integer_cost(img):
     height = img.shape[0]
     return ocr_natural_number(cv2.cvtColor(img[height * 41 // 60 + 1:height * 3 // 4 - 1, -height // 9:], cv2.COLOR_BGR2GRAY), OCR_NOVECENTO)
+
+# 计算待命中的各干员左边界横坐标（浮点数）。
+# screen_size是(屏幕宽度, 屏幕高度)，n是待命中的干员及装置种类数，index是None。
+# 本来试图计算选中干员时的挤压情况的，但似乎这块逻辑在更新中有过变动，现在难以推测。
+# Unity对象坐标总是存储为浮点数。最终显示时，舍入坐标的方法是round。
+# Unity（.NET CLR）和Python提供的round函数都舍入到最近的整数，在.5时舍入到最近的偶数。
+# 返回值保留小数的原因是该坐标可能继续用于计算其他坐标（例如职业与费用的位置），使用舍入后的值将使最终坐标差1。
+def operator_xs(screen_size, n, index):
+    width, height = screen_size
+    if index is None:
+        return np.linspace(max(width - n * height * 89 / 540, 0.0), width, n, endpoint=False)
+    else:
+        raise NotImplementedError()
 
 def main():
     cv2.namedWindow("", cv2.WINDOW_KEEPRATIO)

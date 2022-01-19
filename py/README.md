@@ -303,3 +303,8 @@ _Position = {
 ```python
 (lambda imp: imp("cv2").imwrite("GT-6.png", imp("numpy").array((lambda map_data: [[(lambda tile: tile["heightType"] << 7 | tile["buildableType"] << 5 | tile["passableMask"])(map_data["tiles"][tile_id]) for tile_id in row] for row in map_data["map"]])(imp("json").load(open("level_a001_06.json"))["mapData"]), dtype=imp("numpy").uint8)))(__import__) # 绘制GT-6地图到图像文件
 ```
+
+# 没用的小技巧
+
+- 制造站中点击“排序”可筛选配方。
+- 随时间增强的基建技能，换人时放在原格子位上可以保留技能增强效果。

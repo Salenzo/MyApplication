@@ -15,3 +15,4 @@ Yet another (rubbish) dump-type app.
 - [Getting the IP address of the current machine using Java](https://stackoverflow.com/a/38342964)
 - [I just skipped a great amount of dull work by generating hundreds of lines of JavaScript proptypes with @quicktype](https://app.quicktype.io/)
 - [明日方舟伤害曲线模拟器](https://github.com/FallCicada/ArknightsDamageCurve)
+- [战斗中选中干员时，干员间疏密居然会变化](https://bbs.nga.cn/read.php?tid=22823760)、[战斗中选择干员bug](https://bbs.nga.cn/read.php?tid=25942672)

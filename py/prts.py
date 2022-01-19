@@ -208,9 +208,20 @@ def operator_xs(screen_size, n, index):
     else:
         raise NotImplementedError()
 
+# 判断截图是否处在战斗内。
+# 方法是将费用标志所在位置的图像与费用标志模板比较。
+def in_battle(img):
+    height, width = img.shape[:2]
+    phash = cv2.img_hash.AverageHash_create()
+    return phash.compare(
+        phash.compute(img[height * 41 // 60:height * 3 // 4, -height // 6:-height // 9]),
+        np.uint8([[0x00, 0x00, 0x18, 0x44, 0x74, 0x28, 0x10, 0x00]])
+    ) < 5
+
 def main():
     cv2.namedWindow("", cv2.WINDOW_KEEPRATIO)
     img0 = cv2.imread("b1.png")
+    assert in_battle(img0), "b1.png不是战斗界面截图？"
     print(f"Cost = {integer_cost(img0) + fractional_cost(img0)}")
     img1 = cv2.imread("b2.png")
     img2 = cv2.imread("b3.png")

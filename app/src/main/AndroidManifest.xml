@@ -24,7 +24,6 @@
 	<application
 		android:name="com.chaquo.python.android.PyApplication"
 		android:allowBackup="false"
-		android:foregroundServiceType="mediaProjection"
 		android:icon="@android:drawable/ic_media_play"
 		android:label="迫真应用"
 		android:supportsRtl="false"
@@ -32,8 +31,7 @@
 		<service
 			android:name=".MyService"
 			android:enabled="true"
-			android:exported="false"
-			android:foregroundServiceType="mediaProjection">
+			android:exported="false">
 		</service>
 		<service
 			android:name=".InfamousRecidivistService"
@@ -55,11 +53,10 @@
 			android:name=".SelectDeviceActivity"
 			android:configChanges="orientation|screenSize"
 			android:exported="true"
-			android:foregroundServiceType="mediaProjection"
-			android:screenOrientation="landscape">
+			android:foregroundServiceType="mediaProjection">
+			<!-- android:screenOrientation="sensorLandscape" -->
 			<intent-filter>
 				<action android:name="android.intent.action.MAIN"/>
-
 				<category android:name="android.intent.category.LAUNCHER"/>
 			</intent-filter>
 		</activity>

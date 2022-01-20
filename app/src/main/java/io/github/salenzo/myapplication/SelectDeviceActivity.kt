@@ -386,18 +386,21 @@ class SelectDeviceActivity : Activity(), KeyEvent.Callback {
 			}
 		}
 		menu?.add("启动服务")?.apply {
+			setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM)
 			setOnMenuItemClickListener {
 				startService(Intent(this@SelectDeviceActivity, MyService::class.java))
 				true
 			}
 		}
 		menu?.add("停止服务")?.apply {
+			setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM)
 			setOnMenuItemClickListener {
 				stopService(Intent(this@SelectDeviceActivity, MyService::class.java))
 				true
 			}
 		}
 		menu?.add("获取悬浮窗权限")?.apply {
+			setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM)
 			setOnMenuItemClickListener {
 				if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this@SelectDeviceActivity)) {
 					startActivityForResult(
@@ -411,6 +414,7 @@ class SelectDeviceActivity : Activity(), KeyEvent.Callback {
 			}
 		}
 		menu?.add("打开悬浮窗")?.apply {
+			setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM)
 			setOnMenuItemClickListener {
 				(getSystemService(WINDOW_SERVICE) as WindowManager).addView(
 					TextView(this@SelectDeviceActivity).apply {
@@ -432,6 +436,7 @@ class SelectDeviceActivity : Activity(), KeyEvent.Callback {
 			}
 		}
 		menu?.add("获取截屏权限")?.apply {
+			setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM)
 			setOnMenuItemClickListener {
 				if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
 					if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && getSystemService(NotificationManager::class.java).activeNotifications.none { it.notification.channelId == "２５５６５" }) {

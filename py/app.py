@@ -97,25 +97,84 @@ class imgOper(object):
 #IMG.crop('b.png')
 #print(IMG.sift('b.png'))
 
-ImgO = imgOper('F9.png')
-b, g, ImgO.img = cv2.split(ImgO.img)
-ImgO.img = cv2.resize(ImgO.img, (ImgO.img.shape[1] * 480 // ImgO.img.shape[0], 480), interpolation=cv2.INTER_LINEAR)
-#ret, ImgO.img = cv2.threshold(ImgO.img, 150, 255, cv2.THRESH_BINARY)
-((x0, x1), (y0, y1)) = ImgO.sift('a.png')
-((_, y2), (_, _)) = ImgO.sift('r.png')
-x0 = x0 - 3
-cost = []
-for y in range(y1 + 1, y2):
-    # 真正的计算机图形学家不需要imshow，都是用print看图像的。
-    print(''.join(map(lambda x: '1' if x >= 224 else '0', ImgO.img[y, x0 - 3:])))
-    transitions = np.where(np.diff(ImgO.img[y, x0:] + [0] >= 224))[0]
-    if len(transitions) > 1:
-        cost.append((transitions[1] - transitions[0]) / (ImgO.img.shape[1] - transitions[0] - x0))
-cost = 0.0 if len(cost) == 0 else np.median(cost)
+#ImgO = imgOper('F9.png')
+#b, g, ImgO.img = cv2.split(ImgO.img)
+#ImgO.img = cv2.resize(ImgO.img, (ImgO.img.shape[1] * 480 // ImgO.img.shape[0], 480), interpolation=cv2.INTER_LINEAR)
+# 真正的计算机图形学家不需要imshow，都是用print看图像的。
+#cv2.imshow('wtf ok it works', cv2.imread('F9.png'))
 
 
-print(f'Cost = ?{cost}')
-cv2.imshow('wtf ok it works', cv2.imread('F9.png'))
+
+import prts
+
+def screenshot(drop_count = 0):
+    i = 0
+    while True:
+        img = adb.screenshot()
+        if img is not None:
+            if drop_count > 0:
+                drop_count -= 1
+            else:
+                return img
+        else:
+            i += 1
+            if i == 114:
+                print("连续多次无法截到屏幕内容，这是否有些异常？截图权限丢失了吗？")
+
+def adb_main():
+    if adb.screenshot() is None:
+        print("第一张图就是None，是不是没开截图权限？")
+        return
+    # 等待战斗界面完成加载，以费用标志出现且费用条开始走动为准。
+    print("Polling till in battle.")
+    while True:
+        img = screenshot()
+        if prts.in_battle(img) and 1 / 30 <= prts.fractional_cost(img) <= 29 / 30:
+            break
+    action_sequence = {
+        1: 1,
+    }
+    frame = 0
+    perspective = None
+    width, height = 1920, 1080 # 无障碍那边暂时没写多分辨率，待做！
+    while True:
+        img = screenshot()
+        if not prts.in_battle(img):
+            break
+        # 初次运行到此处时插入一段估计透视的程序。
+        if perspective is None:
+            print("估计透视：数据采集之子弹时间。")
+            # 点击干员的动画效果播放约¼秒。
+            img0 = img
+            adb.tap(width - 8, height - 8)
+            time.sleep(0.4)
+            img1 = screenshot()
+            print("估计透视：数据采集之暂停。")
+            adb.tap(width - height // 12, height // 12)
+            time.sleep(0.2)
+            img2 = screenshot()
+            time.sleep(0.4)
+            img3 = screenshot()
+            adb.tap(width - 8, height - 8)
+            adb.tap(width - height // 12, height // 12)
+            print("估计透视：图像处理。")
+            level = prts.read_level("level_main_01-07.json")
+            perspective = prts.Perspective(level, img0, img1, img2, img3, 1)
+            prts.draw_reseau(img0, perspective, level.shape)
+            cv2.imshow("", img0)
+        # 认为延迟不会超过29帧。
+        delta_frame = (round(prts.fractional_cost(img) * 30) - frame) % 30
+        if delta_frame:
+            frame += delta_frame
+        else:
+            continue
+        print(f"处理帧. 当前时间：{frame/30=:.1f}")
+    print("结束。")
+if "adb" in globals():
+    adb_main()
+else:
+    print("要传到手机上运行。")
+
 #point = ImgO.sift('r.png')
 #cv2.rectangle(ImgO.img, point[0], point[1], (192, 192, 192), thickness=2)
 #cv2.imshow('矩形', ImgO.img)

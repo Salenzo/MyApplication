@@ -134,18 +134,34 @@ def perspective(vanishing_point_y, template, img1):
     )
     return homography
 
+# 综合练习：估计透视矩阵。
+# level：read_level函数返回的地图数据。
+# img0：通常视角截图；img1：子弹时间截图；img2、img3：选中干员且暂停时的截图。
+# operator_position：位域，选中干员的可部署位置，1 = 可部署在近战位，2 = 可部署在远程位。
+def Perspective(level, img0, img1, img2, img3, operator_position):
+    mask = buildable_mask(bullet_time_transform(img0, img1), img2, img3)
+    # 高台可能遮挡可部署位，因此寻找不可放置近战单位的高台地形并上移⅓格。
+    # template是每格图块占用三行一列的矩阵，求出的透视矩阵y分量还需变换。
+    # TODO operator_position
+    template = np.roll(np.repeat(cv2.compare(cv2.bitwise_and(level, 128 | 32), 128, cv2.CMP_EQ), 3, axis=0), -1, axis=0)
+    template[-1, :] = 0
+    template = cv2.subtract(np.repeat(cv2.compare(cv2.bitwise_and(level, 32), 0, cv2.CMP_NE), 3, axis=0), template)
+    homography = perspective(vanishing_point_y(mask), template, mask)
+    homography[:, 1] *= 3
+    return homography
+
 # 在图上绘制算得的网格线，用于调试。
 def draw_reseau(img, homography, shape):
     points = np.int32(cv2.perspectiveTransform(np.float32(
         [[[col, row] for col in range(shape[1] + 1)] for row in range(shape[0] + 1)]
     ), homography))
     for row in range(shape[0] + 1):
-        cv2.line(img, points[row, 0], points[row, shape[1]], [row * 20, 192, 192], 5)
+        cv2.line(img, tuple(points[row, 0]), tuple(points[row, shape[1]]), [row * 20, 192, 192], 5)
     for col in range(shape[1] + 1):
-        cv2.line(img, points[0, col], points[shape[0], col], [192, 192, col * 15], 5)
+        cv2.line(img, tuple(points[0, col]), tuple(points[shape[0], col]), [192, 192, col * 15], 5)
     for row in range(shape[0] + 1):
         for col in range(shape[1] + 1):
-            cv2.circle(img, points[row, col], 10, [row * 20, 255, col * 15], -1)
+            cv2.circle(img, tuple(points[row, col]), 10, [row * 20, 255, col * 15], -1)
 
 # 字形的均值散列值表。
 # 我可以从十六进制散列中直接读出原图，你也可以。
@@ -226,19 +242,12 @@ def main():
     img1 = cv2.imread("b2.png")
     img2 = cv2.imread("b3.png")
     img3 = cv2.imread("b4.png")
-    mask = buildable_mask(bullet_time_transform(img0, img1), img2, img3)
     level = read_level("level_a001_06.json")
-
-    # 高台可能遮挡可部署位，因此寻找不可放置近战单位的高台地形并上移⅓格。
-    # template是每格图块占用三行一列的矩阵，求出的透视矩阵y分量还需变换。
-    template = np.roll(np.repeat(cv2.compare(cv2.bitwise_and(level, 128 | 32), 128, cv2.CMP_EQ), 3, axis=0), -1, axis=0)
-    template[-1, :] = 0
-    template = cv2.subtract(np.repeat(cv2.compare(cv2.bitwise_and(level, 32), 0, cv2.CMP_NE), 3, axis=0), template)
-    homography = perspective(vanishing_point_y(mask), template, mask)
-    homography[:, 1] *= 3
+    homography = Perspective(level, img0, img1, img2, img3, 1)
     draw_reseau(img0, homography, level.shape)
 
     cv2.imshow("", img0)
     cv2.waitKey()
 
-main()
+if __name__ == "__main__":
+    main()

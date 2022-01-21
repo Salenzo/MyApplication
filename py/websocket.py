@@ -13,8 +13,7 @@ async def recv_level(websocket):
         await websocket.send(base64Data)
 
 async def main():
-    async with websockets.connect('10.10.6.91:5141') as websocket:
+    async with websockets.serve(recv_level, "localhost", 5141):
+        await asyncio.Future()
 
-        await recv_level(websocket)
-
-asyncio.get_event_loop().run_until_complete(main())
+asyncio.run(main())

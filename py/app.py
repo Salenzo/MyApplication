@@ -108,7 +108,6 @@ class imgOper(object):
 import prts
 
 def screenshot(drop_count = 0):
-    i = 0
     while True:
         img = adb.screenshot()
         if img is not None:
@@ -116,10 +115,6 @@ def screenshot(drop_count = 0):
                 drop_count -= 1
             else:
                 return img
-        else:
-            i += 1
-            if i == 114:
-                print("连续多次无法截到屏幕内容，这是否有些异常？截图权限丢失了吗？")
 
 def adb_main():
     if adb.screenshot() is None:
@@ -127,12 +122,24 @@ def adb_main():
         return
     # 等待战斗界面完成加载，以费用标志出现且费用条开始走动为准。
     print("Polling till in battle.")
+    img = screenshot()
+    if prts.in_battle(img):
+        print("第一章图在战斗中，恕我无法提供服务。")
+        return
     while True:
         img = screenshot()
         if prts.in_battle(img) and 1 / 30 <= prts.fractional_cost(img) <= 29 / 30:
             break
     action_sequence = {
-        1: 1,
+        # 0：第一帧操作（肯定来不及，同代理指挥一样在第一次来得及的时候操作）
+        # 1：干员条中第二个干员
+        # 4：放之前干员条中共四个干员
+        # 2：行号（0起）
+        # 7：列号（0起）
+        # R：朝向，U/D/L/R
+        0: (1, 4, 2, 7, "R"),
+        30 * 19 + 1: (1, 3, 3, 1, "R"),
+        30 * 30: (0, 2, 5, 8, "L"),
     }
     frame = 0
     perspective = None
@@ -159,16 +166,37 @@ def adb_main():
             adb.tap(width - height // 12, height // 12)
             print("估计透视：图像处理。")
             level = prts.read_level("level_main_01-07.json")
-            perspective = prts.Perspective(level, img0, img1, img2, img3, 1)
+            perspective, bullet_time_homography = prts.Perspective(level, img0, img1, img2, img3, 1)
             prts.draw_reseau(img0, perspective, level.shape)
-            cv2.imshow("", img0)
         # 认为延迟不会超过29帧。
         delta_frame = (round(prts.fractional_cost(img) * 30) - frame) % 30
         if delta_frame:
             frame += delta_frame
         else:
             continue
-        print(f"处理帧. 当前时间：{frame/30=:.1f}")
+        print(f"处理帧. 当前时间：{frame/30=:.2f}")
+        for i in action_sequence.keys():
+            if i < frame:
+                nn, n, row, col, direction = action_sequence[i]
+                del action_sequence[i]
+                x, y = np.int32(cv2.perspectiveTransform(cv2.perspectiveTransform(np.float32([[[col + 0.5, row + 0.5]]]), perspective), bullet_time_homography))[0, 0]
+                adb.swipe(prts.operator_xs((width, height), n, None)[nn] + 8, height - 8, x, y, 0.2)
+                cv2.line(img1, (int(prts.operator_xs((width, height), n, None)[nn] + 8), height - 8), (x, y), [255,i//8,255], 3)
+                time.sleep(0.4)
+                adb.swipe(x, y, {
+                    "U": x,
+                    "D": x,
+                    "L": x - height // 4,
+                    "R": x + height // 4,
+                }[direction], {
+                    "U": y - height // 4,
+                    "D": y + height // 4,
+                    "L": y,
+                    "R": y,
+                }[direction], 0.2)
+                time.sleep(0.4)
+                break
+    cv2.imshow("", img1)
     print("结束。")
 if "adb" in globals():
     adb_main()

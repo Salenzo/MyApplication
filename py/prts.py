@@ -139,16 +139,19 @@ def perspective(vanishing_point_y, template, img1):
 # img0：通常视角截图；img1：子弹时间截图；img2、img3：选中干员且暂停时的截图。
 # operator_position：位域，选中干员的可部署位置，1 = 可部署在近战位，2 = 可部署在远程位。
 def Perspective(level, img0, img1, img2, img3, operator_position):
-    mask = buildable_mask(bullet_time_transform(img0, img1), img2, img3)
+    bullet_time_homography = bullet_time_transform(img0, img1)
+    mask = buildable_mask(bullet_time_homography, img2, img3)
     # 高台可能遮挡可部署位，因此寻找不可放置近战单位的高台地形并上移⅓格。
     # template是每格图块占用三行一列的矩阵，求出的透视矩阵y分量还需变换。
     # TODO operator_position
+    # TODO 左右对称修正
+    # TODO 高台遮挡状况修正：只有下方一个方向有问题的话，就完全可以去枚举算相关系数了
     template = np.roll(np.repeat(cv2.compare(cv2.bitwise_and(level, 128 | 32), 128, cv2.CMP_EQ), 3, axis=0), -1, axis=0)
     template[-1, :] = 0
     template = cv2.subtract(np.repeat(cv2.compare(cv2.bitwise_and(level, 32), 0, cv2.CMP_NE), 3, axis=0), template)
     homography = perspective(vanishing_point_y(mask), template, mask)
     homography[:, 1] *= 3
-    return homography
+    return homography, bullet_time_homography
 
 # 在图上绘制算得的网格线，用于调试。
 def draw_reseau(img, homography, shape):

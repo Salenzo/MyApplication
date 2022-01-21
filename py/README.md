@@ -209,18 +209,35 @@ _Position = {
 			"tileKey": oneOfType(['tileCorrosion', 'tileEnd', 'tileFloor', 'tileForbidden', 'tileRoad', 'tileStart', 'tileWall']),
 			"heightType": (0=平地；1=高台),
 			"buildableType": (位域：1=可放置近战单位；2=可放置远程单位),
-			"passableMask": number,
+			"passableMask": (位域：1=可通行地面单位；2=可通行飞行单位（猜想）),
 			"blackboard": arrayOf(_Blackboard)?,
-			"effects": any,
+			"effects": arrayOf({
+				"key": string, // 如"map_sand_1011"，落穴流沙特效等
+				"offset": {
+					"x": number,
+					"y": number,
+					"z": number,
+				},
+				"direction": number,
+			})?,
 		}),
-		"blockEdges": any,
-		"effects": any,
+		"blockEdges": null,
+		"effects": null,
 		"width": number,
 		"height": number,
 	},
 	"tilesDisallowToLocate": [],
-	"runes": any,
-	"globalBuffs": any,
+	"runes": arrayOf({
+		"difficultyMask": number,
+		"key": string,
+		"professionMask": number,
+		"buildableMask": number,
+		"blackboard": arrayOf(_Blackboard),
+	})?,
+	"globalBuffs": arrayOf({
+		"prefabKey": string, // 如毒雾"periodic_damage"
+		"blackboard": arrayOf(_Blackboard),
+	})?,
 	"routes": arrayOf({
 		"motionMode": number,
 		"startPosition": _Position,
@@ -239,7 +256,7 @@ _Position = {
 		"visitEveryTileCenter": bool,
 		"visitEveryNodeCenter": bool,
 	}?),
-	"enemies": arrayOf(any),
+	"enemies": [],
 	"enemyDbRefs": arrayOf({
 		"useDb": bool,
 		"id": _Id,
@@ -291,9 +308,9 @@ _Position = {
 				"autoPreviewRoute": bool,
 				"isUnharmfulAndAlwaysCountAsKilled": bool,
 			}),
-			"name": any,
+			"name": string?, // 编辑器使用
 		}),
-		"name": any,
+		"name": string?, // 编辑器使用
 	}),
 	"predefines": {
 		"characterInsts": arrayOf(any),
@@ -301,7 +318,7 @@ _Position = {
 		"characterCards": arrayOf(any),
 		"tokenCards": arrayOf(any),
 	},
-	"excludeCharIdList": any,
+	"excludeCharIdList": null,
 	"randomSeed": number,
 }
 ```

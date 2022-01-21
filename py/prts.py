@@ -1,5 +1,4 @@
 import json
-from sys import flags
 import cv2
 import numpy as np
 
@@ -97,17 +96,17 @@ def vanishing_point_y(img1):
     return np.median(vanishing_point_ys)
     # 实际上，空间地面上间隔相等的水平线，透视后仍为水平线，其到消失点距离的倒数之差也相等。
 
-# 转换JSON格式的关卡文件到灰度图像。
-# 像素值是位域：128 = 高台地形；64 = 可放置远程单位；32 = 可放置近战单位；2 = 可通行飞行单位（猜想）；1 = 可通行地面单位。
-def read_level(filename):
-    with open(filename) as f:
-        level = json.load(f)
+# 转换关卡字典的地图数据到灰度图像。
+# 像素值是位域：128 = 高台地形；64 = 可放置远程单位；32 = 可放置近战单位；16 = 有黑板；2 = 可通行飞行单位（猜想）；1 = 可通行地面单位。
+def level_map(level):
     a = np.array(level["mapData"]["map"], dtype=np.uint8)
     if a.shape[0] != level["mapData"]["height"] or a.shape[1] != level["mapData"]["width"]:
         raise ValueError("地图数据自相矛盾：宽高与数组大小不对应")
     for row, col in np.ndindex(a.shape):
         tile = level["mapData"]["tiles"][a[row, col]]
-        a[row, col] = tile["heightType"] << 7 | tile["buildableType"] << 5 | tile["passableMask"]
+        a[row, col] = tile["heightType"] << 7 | tile["buildableType"] << 5 | bool(tile["blackboard"]) << 4 | tile["passableMask"]
+        if tile["blackboard"]:
+            level["mapData"][(row, col)] = tile["blackboard"]
     return a
 
 # 按消失点解除图像的透视，再用矩形包围框确定缩放和平移量，返回从地图数据到通常视角的透视矩阵和归一化误差。误差用于确定高台遮挡修正值。
@@ -136,7 +135,7 @@ def perspective(vanishing_point_y, template, img1):
     return homography, np.mean(cv2.absdiff(cv2.resize(template[y:y + h, x:x + w], (w0, h0), interpolation=cv2.INTER_NEAREST), img0[y0:y0 + h0, x0:x0 + w0])) / 255
 
 # 综合练习：估计透视矩阵。
-# level：read_level函数返回的地图数据。
+# level：level_map函数返回的地图数据。
 # img0：通常视角截图；img1：子弹时间截图；img2、img3：选中干员且暂停时的截图。
 # operator_position：位域，选中干员的可部署位置，1 = 可部署在近战位，2 = 可部署在远程位。
 def Perspective(level, img0, img1, img2, img3, operator_position):
@@ -257,7 +256,8 @@ def main():
     img1 = cv2.imread("b2.png")
     img2 = cv2.imread("b3.png")
     img3 = cv2.imread("b4.png")
-    level = read_level("level_a001_06.json")
+    with open("level_a001_06.json") as f:
+        level = level_map(json.load(f))
     homography, bullet_time_homography = Perspective(level, img0, img1, img2, img3, 1)
     draw_reseau(img0, homography, level.shape)
 

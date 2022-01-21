@@ -2,6 +2,7 @@ import os
 import sys
 import time
 from configparser import ConfigParser
+import json
 import cv2
 import numpy as np
 
@@ -165,7 +166,8 @@ def adb_main():
             adb.tap(width - 8, height - 8)
             adb.tap(width - height // 12, height // 12)
             print("估计透视：图像处理。")
-            level = prts.read_level("level_main_01-07.json")
+            with open("level_main_01-07.json") as f:
+                level = prts.level_map(json.load(f))
             perspective, bullet_time_homography = prts.Perspective(level, img0, img1, img2, img3, 1)
             prts.draw_reseau(img0, perspective, level.shape)
         # 认为延迟不会超过29帧。

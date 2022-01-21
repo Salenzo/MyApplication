@@ -1,4 +1,5 @@
 import json
+from sys import flags
 import cv2
 import numpy as np
 
@@ -109,7 +110,7 @@ def read_level(filename):
         a[row, col] = tile["heightType"] << 7 | tile["buildableType"] << 5 | tile["passableMask"]
     return a
 
-# 按消失点解除图像的透视，再用矩形包围框确定缩放和平移量，产生从地图数据到通常视角的透视矩阵。
+# 按消失点解除图像的透视，再用矩形包围框确定缩放和平移量，返回从地图数据到通常视角的透视矩阵和归一化误差。误差用于确定高台遮挡修正值。
 # template是二值地图数据，img1是二值可放置位视图。
 def perspective(vanishing_point_y, template, img1):
     height, width = img1.shape[:2]
@@ -132,7 +133,7 @@ def perspective(vanishing_point_y, template, img1):
         ),
         0
     )
-    return homography
+    return homography, np.mean(cv2.absdiff(cv2.resize(template[y:y + h, x:x + w], (w0, h0), interpolation=cv2.INTER_NEAREST), img0[y0:y0 + h0, x0:x0 + w0])) / 255
 
 # 综合练习：估计透视矩阵。
 # level：read_level函数返回的地图数据。
@@ -141,16 +142,27 @@ def perspective(vanishing_point_y, template, img1):
 def Perspective(level, img0, img1, img2, img3, operator_position):
     bullet_time_homography = bullet_time_transform(img0, img1)
     mask = buildable_mask(bullet_time_homography, img2, img3)
-    # 高台可能遮挡可部署位，因此寻找不可放置近战单位的高台地形并上移⅓格。
-    # template是每格图块占用三行一列的矩阵，求出的透视矩阵y分量还需变换。
+    # 高台可能遮挡可部署位，因此寻找不可放置近战单位的高台地形并上移一定程度。
+    # 假设遮挡物处在地面上，从0到17/18格枚举遮挡物格中占比，计算每种情况的误差。
+    # template是每格图块占用18行1列的矩阵，求出的透视矩阵y分量还需变换。
     # TODO operator_position
     # TODO 左右对称修正
-    # TODO 高台遮挡状况修正：只有下方一个方向有问题的话，就完全可以去枚举算相关系数了
-    template = np.roll(np.repeat(cv2.compare(cv2.bitwise_and(level, 128 | 32), 128, cv2.CMP_EQ), 3, axis=0), -1, axis=0)
-    template[-1, :] = 0
-    template = cv2.subtract(np.repeat(cv2.compare(cv2.bitwise_and(level, 32), 0, cv2.CMP_NE), 3, axis=0), template)
-    homography = perspective(vanishing_point_y(mask), template, mask)
-    homography[:, 1] *= 3
+    template1 = np.repeat(cv2.compare(cv2.bitwise_and(level, 32), 0, cv2.CMP_NE), 18, axis=0)
+    template2 = np.repeat(cv2.compare(cv2.bitwise_and(level, 128 | 32), 128, cv2.CMP_EQ), 18, axis=0)
+    homography, _ = min([
+        perspective(
+            vanishing_point_y(mask),
+            cv2.subtract(
+                template1,
+                np.vstack((
+                    template2[i:],
+                    np.zeros((i, template2.shape[1]), dtype=np.uint8)
+                ))
+            ),
+            mask
+        ) for i in range(18)
+    ], key=lambda x: x[1])
+    homography[:, 1] *= 18
     return homography, bullet_time_homography
 
 # 在图上绘制算得的网格线，用于调试。
@@ -246,7 +258,7 @@ def main():
     img2 = cv2.imread("b3.png")
     img3 = cv2.imread("b4.png")
     level = read_level("level_a001_06.json")
-    homography = Perspective(level, img0, img1, img2, img3, 1)
+    homography, bullet_time_homography = Perspective(level, img0, img1, img2, img3, 1)
     draw_reseau(img0, homography, level.shape)
 
     cv2.imshow("", img0)

@@ -180,9 +180,9 @@ def adb_main():
                 nn, n, row, col, direction = action_sequence[i]
                 del action_sequence[i]
                 x, y = np.int32(cv2.perspectiveTransform(cv2.perspectiveTransform(np.float32([[[col + 0.5, row + 0.5]]]), perspective), bullet_time_homography))[0, 0]
-                adb.swipe(prts.operator_xs((width, height), n, None)[nn] + 8, height - 8, x, y, 0.2)
+                adb.swipe(prts.operator_xs((width, height), n, None)[nn] + 8, height - 8, x, y, 0.6)
                 cv2.line(img1, (int(prts.operator_xs((width, height), n, None)[nn] + 8), height - 8), (x, y), [255,i//8,255], 3)
-                time.sleep(0.4)
+                time.sleep(0.8)
                 adb.swipe(x, y, {
                     "U": x,
                     "D": x,
@@ -193,8 +193,8 @@ def adb_main():
                     "D": y + height // 4,
                     "L": y,
                     "R": y,
-                }[direction], 0.2)
-                time.sleep(0.4)
+                }[direction], 0.3)
+                time.sleep(0.5)
                 break
     cv2.imshow("", img1)
     print("结束。")

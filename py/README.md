@@ -10,7 +10,7 @@
 - [ ] WEB作战模拟器
 - [ ] 自动打关
 
-# character_table.json
+## character_table.json
 
 ```javascript
 enum FormulaItemType {
@@ -57,7 +57,7 @@ _UnlockCond = {
 _Cost = {
 	"id": string,
 	"count": number,
-	"type": "MATERIAL",
+	"type": oneOfType(['GOLD', 'MATERIAL']),
 };
 {
 	"name": string,
@@ -149,7 +149,7 @@ _Cost = {
 }
 ```
 
-# skill_table.json
+## skill_table.json
 
 ```javascript
 {
@@ -176,7 +176,47 @@ _Cost = {
 }
 ```
 
-# level_a001_06.json
+## uniequip_table.json
+
+```javascript
+{
+	"equipDict": objectOf({
+		"uniEquipId": string,
+		"uniEquipName": string,
+		"uniEquipIcon": string,
+		"uniEquipDesc": string,
+		"typeIcon": string,
+		"typeName": string,
+		"equipShiningColor": oneOfType(["blue", "green", "grey", "red"]),
+		"showEvolvePhase": number,
+		"unlockEvolvePhase": number,
+		"charId": string,
+		"tmplId": null,
+		"showLevel": number,
+		"unlockLevel": number,
+		"unlockFavorPoint": number,
+		"missionList": arrayOf(string),
+		"itemCost": arrayOf(_Cost)?,
+		"type": oneOfType(["ADVANCED", "INITIAL"]),
+	}),
+	"missionList": objectOf({
+		"template": string,
+		"desc": string,
+		"paramList": arrayOf(string),
+		"uniEquipMissionId": string,
+		"uniEquipMissionSort": number,
+		"uniEquipId": string,
+	}),
+	"subProfDict": objectOf({
+		"subProfessionId": string,
+		"subProfessionName": string,
+		"subProfessionCatagory": number,
+	}),
+	"charEquip": objectOf(arrayOf(string)),
+});
+```
+
+## level_a001_06.json
 
 ```javascript
 const _Id = oneOfType(['enemy1000_Gopro', 'enemy1000_Gopro3', 'enemy1001_Bigbo', 'enemy1003_Ncbow2', 'enemy1008_Ghost']);
@@ -323,7 +363,7 @@ _Position = {
 }
 ```
 
-# One-liner
+## One-liner
 
 暴力压行！
 
@@ -333,13 +373,15 @@ _Position = {
 (lambda imp: imp("cv2").imwrite("GT-6.png", imp("numpy").array((lambda map_data: [[(lambda tile: tile["heightType"] << 7 | tile["buildableType"] << 5 | tile["passableMask"])(map_data["tiles"][tile_id]) for tile_id in row] for row in map_data["map"]])(imp("json").load(open("level_a001_06.json"))["mapData"]), dtype=imp("numpy").uint8)))(__import__) # 绘制GT-6地图到图像文件
 ```
 
-## 获取感知散列值
+### 获取感知散列值
 
 ```python
 print(", ".join((lambda cv2: ["%#04x" % x for x in cv2.img_hash.AverageHash_create().compute(cv2.imread("a.png"))[0]])(__import__("cv2"))))
 ```
 
-# 没用的小技巧
+## 没用的小技巧
 
 - 制造站中点击“排序”可筛选配方。
 - 随时间增强的基建技能，换人时放在原格子位上可以保留技能增强效果。
+
+似乎有三套属性键。天赋中的attributeType用整数索引，角色成长曲线用小驼峰，各处黑板用蛇皮下划线。复杂。

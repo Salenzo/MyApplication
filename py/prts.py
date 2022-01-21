@@ -96,19 +96,6 @@ def vanishing_point_y(img1):
     return np.median(vanishing_point_ys)
     # 实际上，空间地面上间隔相等的水平线，透视后仍为水平线，其到消失点距离的倒数之差也相等。
 
-# 转换关卡字典的地图数据到灰度图像。
-# 像素值是位域：128 = 高台地形；64 = 可放置远程单位；32 = 可放置近战单位；16 = 有黑板；2 = 可通行飞行单位（猜想）；1 = 可通行地面单位。
-def level_map(level):
-    a = np.array(level["mapData"]["map"], dtype=np.uint8)
-    if a.shape[0] != level["mapData"]["height"] or a.shape[1] != level["mapData"]["width"]:
-        raise ValueError("地图数据自相矛盾：宽高与数组大小不对应")
-    for row, col in np.ndindex(a.shape):
-        tile = level["mapData"]["tiles"][a[row, col]]
-        a[row, col] = tile["heightType"] << 7 | tile["buildableType"] << 5 | bool(tile["blackboard"]) << 4 | tile["passableMask"]
-        if tile["blackboard"]:
-            level["mapData"][(row, col)] = tile["blackboard"]
-    return a
-
 # 按消失点解除图像的透视，再用矩形包围框确定缩放和平移量，返回从地图数据到通常视角的透视矩阵和归一化误差。误差用于确定高台遮挡修正值。
 # template是二值地图数据，img1是二值可放置位视图。
 def perspective(vanishing_point_y, template, img1):
@@ -249,6 +236,7 @@ def in_battle(img):
     ) < 5
 
 def main():
+    import database
     cv2.namedWindow("", cv2.WINDOW_KEEPRATIO)
     img0 = cv2.imread("b1.png")
     assert in_battle(img0), "b1.png不是战斗界面截图？"
@@ -257,7 +245,7 @@ def main():
     img2 = cv2.imread("b3.png")
     img3 = cv2.imread("b4.png")
     with open("level_a001_06.json") as f:
-        level = level_map(json.load(f))
+        level = database.level_map(json.load(f))
     homography, bullet_time_homography = Perspective(level, img0, img1, img2, img3, 1)
     draw_reseau(img0, homography, level.shape)
 

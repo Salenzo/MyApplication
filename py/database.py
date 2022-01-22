@@ -59,6 +59,7 @@ def find_character_by_name_and_profession(name, profession):
             return key
 
 # 属性关键帧插值。
+# https://prts.wiki/index.php?title=Widget:PropertyCalc&action=edit
 def interpolate_dicts(level, keyframes):
     attributes = {}
     xp = [x["level"] for x in keyframes]
@@ -67,6 +68,10 @@ def interpolate_dicts(level, keyframes):
         attributes[key] = np.interp(level, xp, fp)
         if type(fp[0]) is bool:
             attributes[key] = bool(attributes[key])
+        else:
+		    # 如果有.5，则舍入到最近的偶数。
+            # PRTS wiki在计算信赖的代码中专门考虑了此情况。
+            attributes[key] = float(round(attributes[key]))
     return attributes
 
 # 迭代黑板列表。
@@ -79,7 +84,7 @@ def blackboard_items(blackboard):
 
 # 计算角色在指定等级处的属性。
 # 内部ID，精英化阶段（0~2），等级（1~90），信赖（0~100），潜能（0~5），模组（0~）。
-# 信赖是游戏显示值（0%~200%）的一半，即50以上的信赖在属性计算中视作满信赖。
+# 信赖是游戏显示值（0%~200%）的一半：50以上的信赖在属性计算中视作满信赖，游戏显示值的一半（向下取整）作为输入参数，参照favor_table.json。
 # 参数名虽译得奇怪，却是来自数据库的一手命名。
 def calculate_attributes(id, phase, level, favor, potential, uniequip):
     # 查询角色成长曲线。
@@ -132,14 +137,24 @@ def level_map(level):
     return a
 
 def main():
-    print(calculate_attributes(
+    a = calculate_attributes(
         find_character_by_name_and_profession("末药", "MEDIC"),
-        1,14,51/2,4,0
-    ))
-    print(calculate_attributes(
+        # 精英等级1，等级14，信赖51，潜能5
+        1, 14, 51 // 2, 4, 0
+    )
+    assert a["max_hp"] == 1108
+    assert a["atk"] == 341
+    assert a["def"] == 88
+    assert a["magic_resistance"] == 0
+    a = calculate_attributes(
         find_character_by_name_and_profession("格拉尼", "PIONEER"),
-        2,33,33,5,1
-    ))
+        # 精英等级2，等级33，信赖66，潜能6，骑警套装
+        2, 33, 33, 5, 1
+    )
+    assert a["max_hp"] == 1986
+    assert a["atk"] == 499
+    assert a["def"] == 418
+    assert a["magic_resistance"] == 0
 
 if __name__ == "__main__":
     main()

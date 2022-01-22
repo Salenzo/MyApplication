@@ -12,6 +12,7 @@ socketio = SocketIO(app)
 def index():
     return render_template('index.html')
 
+
 @app.route('/send')
 def send_message():
     sid = request.args.get('sid')

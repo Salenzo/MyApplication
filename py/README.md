@@ -357,7 +357,7 @@ _Position = {
 		"tokenInsts": arrayOf(any),
 		"characterCards": arrayOf(any),
 		"tokenCards": arrayOf(any),
-	},
+	}?,
 	"excludeCharIdList": null,
 	"randomSeed": number,
 }

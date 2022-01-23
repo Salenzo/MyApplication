@@ -103,10 +103,7 @@ def calculate_attributes(id, phase, level, favor, potential, uniequip):
         if type(value) is not bool:
             attributes[key] += value
     # 转换属性名到蛇形，作为黑板。
-    blackboard = {}
-    for key, value in attributes.items():
-        key = re.sub(r"(?=[A-Z])", "_", key).lower()
-        blackboard[key] = value
+    blackboard = {re.sub(r"(?=[A-Z])", "_", key).lower(): value for key, value in attributes.items()}
     # 计算潜能加成。
     if potential < 0 or potential > character["maxPotentialLevel"]:
         raise ValueError("potential")
@@ -123,15 +120,69 @@ def calculate_attributes(id, phase, level, favor, potential, uniequip):
             blackboard[key] += value
     return blackboard
 
-# 转换关卡字典的地图数据到灰度图像。
-# 像素值是位域：128 = 高台地形；64 = 可放置远程单位；32 = 可放置近战单位；16 = 有黑板；2 = 可通行飞行单位（猜想）；1 = 可通行地面单位。
+# 转换关卡字典的地图数据到16位色深灰度图像。
+# 像素值是位域：
+#     256+ = 地块类型；
+#     128 = 高台地形；
+#     64 = 可放置远程单位；
+#     32 = 可放置近战单位；
+#     16 = 有黑板；
+#     2 = 可通行飞行单位（猜想）；
+#     1 = 可通行地面单位。
+# 地块类型数值由tile_keys指定，顺序是我随便编的，肯定会变，建议用到时动态查表，如database.tile_keys["tile_hole"]。
+tile_keys = {key: i for i, key in enumerate([
+    "tile_empty",
+    "tile_forbidden",
+    "tile_start",
+    "tile_flystart",
+    "tile_end",
+    "tile_telin",
+    "tile_telout",
+    "tile_road",
+    "tile_wall",
+    "tile_wooden_wall",
+    "tile_floor",
+    "tile_fence",
+    "tile_grass",
+    "tile_hole",
+    "tile_rcm_operator",
+    "tile_rcm_crate",
+    "tile_healing",
+    "tile_defup",
+    "tile_defbreak",
+    "tile_bigforce",
+    "tile_infection",
+    "tile_corrosion",
+    "tile_poison",
+    "tile_smog",
+    "tile_deepwater",
+    "tile_deepsea",
+    "tile_gazebo",
+    "tile_yinyang_switch",
+    "tile_yinyang_road",
+    "tile_yinyang_wall",
+    "tile_icestr",
+    "tile_icetur_lb",
+    "tile_icetur_lt",
+    "tile_icetur_rb",
+    "tile_icetur_rt",
+    "tile_volcano",
+    "tile_volcano_emp",
+    "tile_volspread",
+])}
 def level_map(level):
-    a = np.array(level["mapData"]["map"], dtype=np.uint8)
+    a = np.array(level["mapData"]["map"], dtype=np.uint16)
     if a.shape[0] != level["mapData"]["height"] or a.shape[1] != level["mapData"]["width"]:
         raise ValueError("地图数据自相矛盾：宽高与数组大小不对应")
     for row, col in np.ndindex(a.shape):
         tile = level["mapData"]["tiles"][a[row, col]]
-        a[row, col] = tile["heightType"] << 7 | tile["buildableType"] << 5 | bool(tile["blackboard"]) << 4 | tile["passableMask"]
+        a[row, col] = (
+            tile_keys[tile["tileKey"]] << 8
+            | tile["heightType"] << 7
+            | tile["buildableType"] << 5
+            | bool(tile["blackboard"]) << 4
+            | tile["passableMask"]
+        )
         if tile["blackboard"]:
             level["mapData"][(row, col)] = tile["blackboard"]
     return a

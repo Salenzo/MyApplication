@@ -25,24 +25,30 @@ class PathFinder:
             ]
             for t in range(self.height)
         ]
+        self.passable_mask = np.moveaxis([
+            # 地面单位寻找可通行地面单位且不是落穴的地块通行。
+            # 有说法表示地面单位对空地块（tile_empty）也会绕行，但是游戏中没有出现在正常作战区域内的空地块，无法验证。
+            # 我认为空地块可能是内部处理时地图外圈的哨兵元素。
+            np.bitwise_and(np.bitwise_and(map, 1) != 0, np.right_shift(map, 8) != database.tile_keys["tile_hole"]),
+            # 飞行单位寻找可通行飞行单位的地块通行。
+            np.bitwise_and(map, 2) != 0,
+        ], 0, -1)
         # 放箱子时只检查有类型0检查点的路径，且只检查沿着类型0检查点能否通行（允许斜向）。
         if predefines and predefines["tokenInsts"]:
             for mm in predefines["tokenInsts"]:
                 if mm["hidden"] or mm["inst"]["characterKey"] in ["箱子ID等"]:
-                    self.tiles[mm["position"]["row"]][mm["position"]["col"]].passableMaskOverride = 2
-        self.passable_mask = np.array([[[
-            checkTilePassable(tile, mode) for mode in range(2)
-        ] for tile in row] for row in self.tiles], dtype=np.bool8)
+                    self.passable_mask[mm["position"]["row"], mm["position"]["col"], 0] = False
     def getTileAt(self, row, col):
         return None if row < 0 or col < 0 or row >= self.height or col >= self.width else self.tiles[row][col]
-    def getAvailableNeighbours(self, tile, allow_diagonal, motionMode):
+    def getAvailableNeighbours(self, tile, allow_diagonal, motion_mode):
         t = [
-            (lambda t: {
-                "dist": (1.414 if direction % 2 else 1) + (-1 if allow_diagonal and t and t.tileKey == database.tile_keys["tile_yinyang_switch"] else 0),
-                "tile": t,
-                "DIRE": direction,
-            })(self.getTileAt(t[0], t[1]))
-            for direction, t in enumerate([
+            # distance, tile, direction
+            (lambda t: [
+                (1.414 if direction % 2 else 1) + (-1 if allow_diagonal and t and t.tileKey == database.tile_keys["tile_yinyang_switch"] else 0),
+                t,
+                direction,
+            ])(self.getTileAt(row, col))
+            for direction, (row, col) in enumerate([
                 (tile.row + 1, tile.col),
                 (tile.row + 1, tile.col + 1),
                 (tile.row, tile.col + 1),
@@ -54,15 +60,15 @@ class PathFinder:
             ])
         ]
         for direction in [0, 2, 4, 6]:
-            if not checkTilePassable(t[direction]["tile"], motionMode):
-                t[direction]["tile"] = None
-                t[(direction + 1) % 8]["tile"] = None
-                t[(direction + 7) % 8]["tile"] = None
+            if not self.checkTilePassable(t[direction][1], motion_mode):
+                t[direction][1] = None
+                t[(direction + 1) % 8][1] = None
+                t[(direction + 7) % 8][1] = None
         if not allow_diagonal:
             t = [t[0], t[2], t[4], t[6]]
-        return [x for x in t if checkTilePassable(x["tile"], motionMode)]
+        return [x for x in t if self.checkTilePassable(x[1], motion_mode)]
     # motionMode：地面0还是飞行1
-    def findPathBetween(self, FROM, to, motionMode, allow_diagonal, point_data):
+    def findPathBetween(self, FROM, to, motion_mode, allow_diagonal, point_data):
         if FROM["row"] < 0 or FROM["col"] < 0 or FROM["row"] >= self.height or FROM["col"] >= self.width or to["row"] < 0 or to["col"] < 0 or to["row"] >= self.height or to["col"] >= self.width:
             return None
         path = None
@@ -80,30 +86,23 @@ class PathFinder:
                     path.insert(0, {"row": p.pointer["tile"].row, "col": p.pointer["tile"].col})
                     p = p.pointer["tile"]
                 break
-            for mm in [x for x in self.getAvailableNeighbours(head_tile, allow_diagonal, motionMode) if not visited_mask[x["tile"].row, x["tile"].col]]:
-                dist = mm["dist"]
-                tile = mm["tile"]
-                DIRE = mm["DIRE"]
+            for dist, tile, DIRE in self.getAvailableNeighbours(head_tile, allow_diagonal, motion_mode):
+                if visited_mask[tile.row, tile.col]: continue
                 if not tile.pointer or (dist + head_dist < tile.pointer["dist"] or dist + head_dist == tile.pointer["dist"] and DIRE < tile.pointer["direction"]):
                     tile.pointer = {"tile": head_tile, "dist": dist + head_dist, "direction": DIRE}
-                if len(queue) == 0 or queue[len(queue) - 1]["dist"] < head_dist:
-                    queue.append({"dist": head_dist + dist, "tile": tile})
-                else:
-                    a = len(queue)
-                    while a > 0 and queue[a - 1]["dist"] > head_dist:
-                        a -= 1
-                    queue.insert(a, {"dist": head_dist + dist, "tile": tile})
+                a = len(queue)
+                while a > 0 and queue[a - 1]["dist"] > head_dist: a -= 1
+                queue.insert(a, {"dist": head_dist + dist, "tile": tile})
         for row in range(self.height):
             for col in range(self.width):
                 self.tiles[row][col].pointer = None
-        if not path:
-            raise Exception("Invalid path")
+        if not path: raise Exception("Invalid path")
         path[0]["reachOffset"] = FROM.get("reachOffset")
-        path[len(path) - 1]["reachOffset"] = to.get("reachOffset")
+        path[-1]["reachOffset"] = to.get("reachOffset")
         if to.get("type") in [1, 3, 5]:
-            path[path.length - 1].update(point_data)
+            path[-1].update(point_data)
         return path
-    def findPath(self, startPosition, checkpoints, endPosition, motionMode, allowDiagonalMove):
+    def findPath(self, startPosition, checkpoints, endPosition, motion_mode, allow_diagonal):
         _ = None
         u = []
         for e in [startPosition, *[{"row": x["position"]["row"], "col": x["position"]["col"], "type": x.get("type"), "time": x.get("time"), "reachOffset": x.get("reachOffset")} for x in checkpoints], endPosition]:
@@ -116,7 +115,7 @@ class PathFinder:
             else:
                 _ = e
                 u.append(e)
-        if any([not checkTilePassable(self.getTileAt(e["row"], e["col"]), motionMode) for e in u]):
+        if any([not self.passable_mask[e["row"], e["col"], motion_mode] for e in u]):
             return u
         s = []
         for e in range(len(u) - 1):
@@ -124,41 +123,35 @@ class PathFinder:
                 s.append(u[e].copy())
             if u[e + 1].get("type") in [5, 6]:
                 continue
-            n = self.findPathBetween(u[e], u[e + 1],
-                motionMode=motionMode,
-                allow_diagonal=allowDiagonalMove,
-                point_data=u[e + 1]
-            )
-            t = self.merge(n, motionMode)
-            if e:
-                t.pop(0)
+            n = self.findPathBetween(u[e], u[e + 1], motion_mode, allow_diagonal, point_data=u[e + 1])
+            t = self.merge(n, motion_mode)
+            if e: t.pop(0)
             s.extend(t)
         return s
-    def checkArea(self, a, b, motionMode):
+    def checkArea(self, a, b, motion_mode):
         return np.all(self.passable_mask[
             min(a[0], b[0]) : max(a[0], b[0]) + 1,
             min(a[1], b[1]) : max(a[1], b[1]) + 1,
-            motionMode
+            motion_mode
         ])
-    def merge(self, list, motionMode):
+    def merge(self, list, motion_mode):
         if len(list) <= 2:
             return list
         [FROM, *rest] = list
         r = None
         t = [FROM]
         for e in rest:
-            if self.checkArea((FROM["row"], FROM["col"]), (e["row"], e["col"]), motionMode):
+            if self.checkArea((FROM["row"], FROM["col"]), (e["row"], e["col"]), motion_mode):
                 r = e
             else:
                 t.append(r)
                 FROM = r
-                if self.checkArea((FROM["row"], FROM["col"]), (e["row"], e["col"]), motionMode):
+                if self.checkArea((FROM["row"], FROM["col"]), (e["row"], e["col"]), motion_mode):
                     r = e
-        t.append(list[len(list) - 1])
+        t.append(list[-1])
         return t
-
-def checkTilePassable(tile, motionMode):
-    return tile and tile.passableMask() & 1 << motionMode and (motionMode or tile.tileKey not in [database.tile_keys["tile_hole"], database.tile_keys["tile_empty"]])
+    def checkTilePassable(self, tile, motion_mode):
+        return tile and self.passable_mask[tile.row, tile.col, motion_mode]
 
 # 打印一幅二值图像。
 def imprint(img):
@@ -167,20 +160,12 @@ def imprint(img):
             print("[]" if tile else "--", end="")
         print()
 
-modes = [
-    # 地面单位寻找可通行地面单位且不是落穴的地块通行。
-    # 有说法表示地面单位对空地块（tile_empty）也会绕行，但是游戏中没有出现在正常作战区域内的空地块，无法验证。
-    # 我认为空地块是内部处理时地图外圈的哨兵元素，本模块中也是如此使用的。
-    #np.bitwise_and(np.bitwise_and(level_map, 1) != 0, np.right_shift(level_map, 8) != database.tile_keys["tile_hole"]),
-    # 飞行单位寻找可通行飞行单位的地块通行。
-    #np.bitwise_and(level_map, 2) != 0,
-]
 level = database.read_json("level_act16d5_ex06.json")
 pp = PathFinder(database.level_map(level), level["predefines"])
 print(pp.findPath(
-        startPosition={ "row": 1, "col": 0 },
-        checkpoints=[{ "position": { "row": 1, "col": 1 } }, { "position": { "row": 7, "col": 1 } }],
-        endPosition={ "row": 8, "col": 10 },
-        motionMode=0,
-        allowDiagonalMove=True
+        { "row": 1, "col": 0 },
+        [{ "position": { "row": 1, "col": 1 } }, { "position": { "row": 7, "col": 1 } }],
+        { "row": 8, "col": 10 },
+        0,
+        True
 ))

@@ -4,13 +4,10 @@ import database
 # 这片大地。
 
 class tile:
-    def __init__(self, row, col, tileKey, heightType, buildableType, passableMask, map, **_):
-        self.map = map
+    def __init__(self, row, col, tileKey, passableMask):
         self.row = row
         self.col = col
         self.tileKey = tileKey
-        self.heightType = heightType
-        self.buildableType = buildableType
         self.passableMask_raw = passableMask
         self.passableMaskOverride = None
         self.pointer = None
@@ -18,16 +15,16 @@ class tile:
         return self.passableMaskOverride or self.passableMask_raw
 
 class PathFinder:
-    def __init__(self, m):
-        tiles = m["mapData"]["tiles"]
-        width = m["mapData"]["width"]
-        height = m["mapData"]["height"]
-        routes = m["routes"]
-        predefines = m["predefines"]
-        self.tiles_ref = tiles.copy()
-        self.width = width
-        self.height = height
-        self.tiles = [[tile(**self.tiles_ref[t * width + a], row=t, col=a, map=self) for a in range(width)] for t in range(height)]
+    def __init__(self, map, predefines):
+        map = np.flipud(map)
+        self.height, self.width = map.shape
+        self.tiles = [
+            [
+                tile(t, a, map[t, a] >> 8, map[t, a] & 3)
+                for a in range(self.width)
+            ]
+            for t in range(self.height)
+        ]
         # 放箱子时只检查有类型0检查点的路径，且只检查沿着类型0检查点能否通行（允许斜向）。
         if predefines and predefines["tokenInsts"]:
             for mm in predefines["tokenInsts"]:
@@ -41,7 +38,7 @@ class PathFinder:
     def getAvailableNeighbours(self, tile, allow_diagonal, motionMode):
         t = [
             (lambda t: {
-                "dist": (1.414 if direction % 2 else 1) + (-1 if allow_diagonal and t and "tile_yinyang_switch" == t.tileKey else 0),
+                "dist": (1.414 if direction % 2 else 1) + (-1 if allow_diagonal and t and t.tileKey == database.tile_keys["tile_yinyang_switch"] else 0),
                 "tile": t,
                 "DIRE": direction,
             })(self.getTileAt(t[0], t[1]))
@@ -161,7 +158,7 @@ class PathFinder:
         return t
 
 def checkTilePassable(tile, motionMode):
-    return tile and tile.passableMask() & 1 << motionMode and (motionMode or tile.tileKey not in ["tile_hole", "tile_empty"])
+    return tile and tile.passableMask() & 1 << motionMode and (motionMode or tile.tileKey not in [database.tile_keys["tile_hole"], database.tile_keys["tile_empty"]])
 
 # 打印一幅二值图像。
 def imprint(img):
@@ -178,7 +175,8 @@ modes = [
     # 飞行单位寻找可通行飞行单位的地块通行。
     #np.bitwise_and(level_map, 2) != 0,
 ]
-pp = PathFinder(database.read_json("level_act16d5_ex06.json"))
+level = database.read_json("level_act16d5_ex06.json")
+pp = PathFinder(database.level_map(level), level["predefines"])
 print(pp.findPath(
         startPosition={ "row": 1, "col": 0 },
         checkpoints=[{ "position": { "row": 1, "col": 1 } }, { "position": { "row": 7, "col": 1 } }],

@@ -8,6 +8,7 @@ class Tile:
         self.row = row
         self.col = col
 
+# motion_mode：0 = 地面单位；1 = 飞行单位。
 class PathFinder:
     def __init__(self, map, predefines):
         self.map = np.flipud(map)
@@ -64,8 +65,8 @@ class PathFinder:
         if not allow_diagonal:
             t = [t[0], t[2], t[4], t[6]]
         return [x for x in t if x[1] and self.passable_mask[x[1].row, x[1].col, motion_mode]]
-    # motionMode：地面0还是飞行1
-    def findPathBetween(self, FROM, to, motion_mode, allow_diagonal, point_data):
+    # path搜索两点间最短路径。
+    def path(self, FROM, to, motion_mode, allow_diagonal, point_data):
         if FROM["row"] < 0 or FROM["col"] < 0 or FROM["row"] >= self.height or FROM["col"] >= self.width or to["row"] < 0 or to["col"] < 0 or to["row"] >= self.height or to["col"] >= self.width:
             return None
         path = None
@@ -105,28 +106,32 @@ class PathFinder:
         if to.get("type") in [1, 3, 5]:
             path[-1].update(point_data)
         return path
-    def findPath(self, startPosition, checkpoints, endPosition, motion_mode, allow_diagonal):
+    # route按路线检查点分段调用path来搜索路径。
+    def route(self, start, checkpoints, end, motion_mode, allow_diagonal):
         u = []
-        for e in [startPosition, *[{"row": x["position"]["row"], "col": x["position"]["col"], "type": x.get("type"), "time": x.get("time"), "reachOffset": x.get("reachOffset")} for x in checkpoints], endPosition]:
-            if e.get("type") in [1, 3, 5, 7]:
-                u.append({**e,
+        for point in [start, *[{"row": x["position"]["row"], "col": x["position"]["col"], "type": x.get("type"), "time": x.get("time"), "reachOffset": x.get("reachOffset")} for x in checkpoints], end]:
+            if point.get("type") in [1, 3, 5, 7]:
+                u.append({**point,
                     "row": _["row"],
                     "col": _["col"],
                     "reachOffset": _["reachOffset"]
                 })
             else:
-                _ = e
-                u.append(e)
+                _ = point
+                u.append(point)
         if any([not self.passable_mask[e["row"], e["col"], motion_mode] for e in u]):
             return u
         ret = []
-        for e in range(len(u) - 1):
-            if u[e].get("type") in [5, 6]: ret.append(u[e].copy())
-            if u[e + 1].get("type") in [5, 6]: continue
-            n = self.findPathBetween(u[e], u[e + 1], motion_mode, allow_diagonal, point_data=u[e + 1])
-            t = self.merge(n, motion_mode)
-            if e: t.pop(0)
-            ret.extend(t)
+        for i in range(len(u) - 1):
+            if u[i].get("type") in [5, 6]: ret.append(u[i].copy())
+            if u[i + 1].get("type") in [5, 6]: continue
+            ret.extend(self.clean_up_path(
+                self.path(
+                    u[i], u[i + 1],
+                    motion_mode, allow_diagonal, point_data=u[i + 1]
+                ),
+                motion_mode
+            )[bool(i):])
         return ret
     def checkArea(self, a, b, motion_mode):
         return np.all(self.passable_mask[
@@ -134,12 +139,12 @@ class PathFinder:
             min(a[1], b[1]) : max(a[1], b[1]) + 1,
             motion_mode
         ])
-    def merge(self, list, motion_mode):
-        if len(list) <= 2: return list
+    def clean_up_path(self, path, motion_mode):
+        if len(path) <= 2: return path
         r = None
-        start = list[0]
+        start = path[0]
         ret = [start]
-        for point in list[1:]:
+        for point in path[1:]:
             if self.checkArea((start["row"], start["col"]), (point["row"], point["col"]), motion_mode):
                 r = point
             else:
@@ -147,7 +152,7 @@ class PathFinder:
                 start = r
                 if self.checkArea((start["row"], start["col"]), (point["row"], point["col"]), motion_mode):
                     r = point
-        ret.append(list[-1])
+        ret.append(path[-1])
         return ret
 
 # 打印一幅二值图像。
@@ -159,7 +164,7 @@ def imprint(img):
 
 level = database.read_json("level_act16d5_ex06.json")
 pp = PathFinder(database.level_map(level), level["predefines"])
-print(pp.findPath(
+print(pp.route(
         { "row": 1, "col": 0 },
         [{ "position": { "row": 1, "col": 1 } }, { "position": { "row": 7, "col": 1 } }],
         { "row": 8, "col": 10 },

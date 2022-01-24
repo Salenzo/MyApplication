@@ -1,103 +1,7 @@
-import queue
 import numpy as np
 import database
 
 # 这片大地。
-level = database.read_json("level_main_01-07.json")
-level_map = database.level_map(level)
-
-def getOrFalse(passable_mask, indices):
-    return passable_mask[indices[0], indices[1]] if indices[0] >= 0 and indices[0] < passable_mask.shape[0] and indices[1] >= 0 and indices[1] < passable_mask.shape[1] else False
-
-def getAvailableNeighbours(passable_mask, tile, allow_diagonal):
-    ret = [
-        {
-            "dist": (1.414 if direction % 2 else 1),
-            "tile": t,
-            "DIRE": direction,
-        }
-        for direction, t in enumerate([
-            (tile[0] + 1, tile[1]),
-            (tile[0] + 1, tile[1] + 1),
-            (tile[0], tile[1] + 1),
-            (tile[0] - 1, tile[1] + 1),
-            (tile[0] - 1, tile[1]),
-            (tile[0] - 1, tile[1] - 1),
-            (tile[0], tile[1] - 1),
-            (tile[0] + 1, tile[1] - 1),
-        ])
-    ]
-    if allow_diagonal:
-        for t in ret:
-            if t["tile"] is not None and t["tile"] >> 8 == database.tile_keys["tile_yinyang_switch"]:
-                t["dist"] -= 1
-        t = tile.map.getTileAt(t)
-    for direction in [0, 2, 4, 6]:
-        if not ret[direction].tile:
-            ret[direction].tile = None
-            ret[(direction + 1) % 8].tile = None
-            ret[(direction + 7) % 8].tile = None
-    if not allow_diagonal:
-        ret = [ret[0], ret[2], ret[4], ret[6]]
-    return [x for x in ret if getOrFalse(passable_mask, x)]
-
-def checkArea(passable_mask, a, b):
-    return np.all(passable_mask[
-        min(a[0], b[0]):max(a[0], b[0]) + 1,
-        min(a[1], b[1]):max(a[1], b[1]) + 1
-    ])
-
-def merge(passable_mask, list):
-    if len(list) <= 2:
-        return list
-    a = list[0]
-    b = None
-    ret = [list[0]]
-    for e in list[1:]:
-        if checkArea(passable_mask, a, e):
-            b = e
-        else:
-            ret.append(b)
-            a = e
-            if checkArea(passable_mask, a, e):
-                b = e
-    ret.append(list[len(list) - 1])
-    return ret
-
-modes = [
-    # 地面单位寻找可通行地面单位且不是落穴的地块通行。
-    # 有说法表示地面单位对空地块（tile_empty）也会绕行，但是游戏中没有出现在正常作战区域内的空地块，无法验证。
-    # 我认为空地块是内部处理时地图外圈的哨兵元素，本模块中也是如此使用的。
-    np.bitwise_and(np.bitwise_and(level_map, 1) != 0, np.right_shift(level_map, 8) != database.tile_keys["tile_hole"]),
-    # 飞行单位寻找可通行飞行单位的地块通行。
-    np.bitwise_and(level_map, 2) != 0,
-]
-
-#for row in level_map:
-#    for tile in row:
-#        print("[]" if tile else "--", end="")
-#    print()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 class tile:
     def __init__(self, row, col, tileKey, heightType, buildableType, passableMask, map, **_):
@@ -109,12 +13,11 @@ class tile:
         self.buildableType = buildableType
         self.passableMask_raw = passableMask
         self.passableMaskOverride = None
-        self.visited = False
         self.pointer = None
     def passableMask(self):
         return self.passableMaskOverride or self.passableMask_raw
 
-class ppmap:
+class PathFinder:
     def __init__(self, m):
         tiles = m["mapData"]["tiles"]
         width = m["mapData"]["width"]
@@ -130,6 +33,9 @@ class ppmap:
             for mm in predefines["tokenInsts"]:
                 if mm["hidden"] or mm["inst"]["characterKey"] in ["箱子ID等"]:
                     self.tiles[mm["position"]["row"]][mm["position"]["col"]].passableMaskOverride = 2
+        self.passable_mask = np.array([[[
+            checkTilePassable(tile, mode) for mode in range(2)
+        ] for tile in row] for row in self.tiles], dtype=np.bool8)
     def getTileAt(self, row, col):
         return None if row < 0 or col < 0 or row >= self.height or col >= self.width else self.tiles[row][col]
     def getAvailableNeighbours(self, tile, allow_diagonal, motionMode):
@@ -138,16 +44,16 @@ class ppmap:
                 "dist": (1.414 if direction % 2 else 1) + (-1 if allow_diagonal and t and "tile_yinyang_switch" == t.tileKey else 0),
                 "tile": t,
                 "DIRE": direction,
-            })(self.getTileAt(t["row"], t["col"]))
+            })(self.getTileAt(t[0], t[1]))
             for direction, t in enumerate([
-                {"row": tile.row + 1, "col": tile.col},
-                {"row": tile.row + 1, "col": tile.col + 1},
-                {"row": tile.row, "col": tile.col + 1},
-                {"row": tile.row - 1, "col": tile.col + 1},
-                {"row": tile.row - 1, "col": tile.col},
-                {"row": tile.row - 1, "col": tile.col - 1},
-                {"row": tile.row, "col": tile.col - 1},
-                {"row": tile.row + 1, "col": tile.col - 1},
+                (tile.row + 1, tile.col),
+                (tile.row + 1, tile.col + 1),
+                (tile.row, tile.col + 1),
+                (tile.row - 1, tile.col + 1),
+                (tile.row - 1, tile.col),
+                (tile.row - 1, tile.col - 1),
+                (tile.row, tile.col - 1),
+                (tile.row + 1, tile.col - 1),
             ])
         ]
         for direction in [0, 2, 4, 6]:
@@ -164,10 +70,11 @@ class ppmap:
             return None
         path = None
         queue = [{"dist": 0, "tile": self.getTileAt(row=FROM["row"], col=FROM["col"])}]
+        visited_mask = np.zeros((self.height, self.width), dtype=np.bool8)
         while len(queue):
             head_dist = queue[0]["dist"]
             head_tile = queue.pop(0)["tile"]
-            head_tile.visited = True
+            visited_mask[head_tile.row, head_tile.col] = True
             if head_tile.row == to["row"] and head_tile.col == to["col"]:
                 # connect pointers
                 path = [{"row": head_tile.row, "col": head_tile.col}]
@@ -176,7 +83,7 @@ class ppmap:
                     path.insert(0, {"row": p.pointer["tile"].row, "col": p.pointer["tile"].col})
                     p = p.pointer["tile"]
                 break
-            for mm in [x for x in self.getAvailableNeighbours(head_tile, allow_diagonal, motionMode) if not x["tile"].visited]:
+            for mm in [x for x in self.getAvailableNeighbours(head_tile, allow_diagonal, motionMode) if not visited_mask[x["tile"].row, x["tile"].col]]:
                 dist = mm["dist"]
                 tile = mm["tile"]
                 DIRE = mm["DIRE"]
@@ -191,7 +98,6 @@ class ppmap:
                     queue.insert(a, {"dist": head_dist + dist, "tile": tile})
         for row in range(self.height):
             for col in range(self.width):
-                self.tiles[row][col].visited = False
                 self.tiles[row][col].pointer = None
         if not path:
             raise Exception("Invalid path")
@@ -231,10 +137,12 @@ class ppmap:
                 t.pop(0)
             s.extend(t)
         return s
-    def checkArea(self, FROM, to, motionMode):
-        col0 = min(FROM["col"], to["col"])
-        row0 = min(FROM["row"], to["row"])
-        return all([all([checkTilePassable(self.tiles[row0 + row][col0 + col], motionMode) for col in range(abs(FROM["col"] - to["col"]) + 1)]) for row in range(abs(FROM["row"] - to["row"]) + 1)])
+    def checkArea(self, a, b, motionMode):
+        return np.all(self.passable_mask[
+            min(a[0], b[0]) : max(a[0], b[0]) + 1,
+            min(a[1], b[1]) : max(a[1], b[1]) + 1,
+            motionMode
+        ])
     def merge(self, list, motionMode):
         if len(list) <= 2:
             return list
@@ -242,12 +150,12 @@ class ppmap:
         r = None
         t = [FROM]
         for e in rest:
-            if self.checkArea(FROM=FROM, to=e, motionMode=motionMode):
+            if self.checkArea((FROM["row"], FROM["col"]), (e["row"], e["col"]), motionMode):
                 r = e
             else:
                 t.append(r)
                 FROM = r
-                if self.checkArea(FROM=FROM, to=e, motionMode=motionMode):
+                if self.checkArea((FROM["row"], FROM["col"]), (e["row"], e["col"]), motionMode):
                     r = e
         t.append(list[len(list) - 1])
         return t
@@ -255,8 +163,22 @@ class ppmap:
 def checkTilePassable(tile, motionMode):
     return tile and tile.passableMask() & 1 << motionMode and (motionMode or tile.tileKey not in ["tile_hole", "tile_empty"])
 
+# 打印一幅二值图像。
+def imprint(img):
+    for row in img:
+        for tile in row:
+            print("[]" if tile else "--", end="")
+        print()
 
-pp = ppmap(database.read_json("level_act16d5_ex06.json"))
+modes = [
+    # 地面单位寻找可通行地面单位且不是落穴的地块通行。
+    # 有说法表示地面单位对空地块（tile_empty）也会绕行，但是游戏中没有出现在正常作战区域内的空地块，无法验证。
+    # 我认为空地块是内部处理时地图外圈的哨兵元素，本模块中也是如此使用的。
+    #np.bitwise_and(np.bitwise_and(level_map, 1) != 0, np.right_shift(level_map, 8) != database.tile_keys["tile_hole"]),
+    # 飞行单位寻找可通行飞行单位的地块通行。
+    #np.bitwise_and(level_map, 2) != 0,
+]
+pp = PathFinder(database.read_json("level_act16d5_ex06.json"))
 print(pp.findPath(
         startPosition={ "row": 1, "col": 0 },
         checkpoints=[{ "position": { "row": 1, "col": 1 } }, { "position": { "row": 7, "col": 1 } }],

@@ -3,23 +3,11 @@ import database
 
 # 这片大地。
 
-class Tile:
-    def __init__(self, row, col):
-        self.row = row
-        self.col = col
-
 # motion_mode：0 = 地面单位；1 = 飞行单位。
 class PathFinder:
     def __init__(self, map, predefines):
         self.map = np.flipud(map)
         self.height, self.width = self.map.shape
-        self.tiles = [
-            [
-                Tile(t, a)
-                for a in range(self.width)
-            ]
-            for t in range(self.height)
-        ]
         # 用法是self.passable_mask[row, col, motion_mode] → bool。
         self.passable_mask = np.moveaxis([
             # 地面单位寻找可通行地面单位且不是落穴的地块通行。
@@ -42,45 +30,46 @@ class PathFinder:
         t = [
             # distance, tile, direction
             (lambda t: [
-                (1.414 if direction % 2 else 1) + (-1 if allow_diagonal and t and self.map[t.row, t.col] >> 8 == database.tile_keys["tile_yinyang_switch"] else 0),
+                (1.414 if direction % 2 else 1) + (-1 if allow_diagonal and t and self.map[t] >> 8 == database.tile_keys["tile_yinyang_switch"] else 0),
                 t,
                 direction,
-            ])(None if row < 0 or col < 0 or row >= self.height or col >= self.width else self.tiles[row][col])
+            ])(None if row < 0 or col < 0 or row >= self.height or col >= self.width else (row, col))
             for direction, (row, col) in enumerate([
-                (tile.row + 1, tile.col),
-                (tile.row + 1, tile.col + 1),
-                (tile.row, tile.col + 1),
-                (tile.row - 1, tile.col + 1),
-                (tile.row - 1, tile.col),
-                (tile.row - 1, tile.col - 1),
-                (tile.row, tile.col - 1),
-                (tile.row + 1, tile.col - 1),
+                # 有时候我也希望tuple(map(sum, zip(a, b)))可以像NumPy那样写成a + b，其中a和b是元组。
+                (tile[0] + 1, tile[1]),
+                (tile[0] + 1, tile[1] + 1),
+                (tile[0], tile[1] + 1),
+                (tile[0] - 1, tile[1] + 1),
+                (tile[0] - 1, tile[1]),
+                (tile[0] - 1, tile[1] - 1),
+                (tile[0], tile[1] - 1),
+                (tile[0] + 1, tile[1] - 1),
             ])
         ]
         for direction in [0, 2, 4, 6]:
-            if t[direction][1] and not self.passable_mask[t[direction][1].row, t[direction][1].col, motion_mode]:
+            if t[direction][1] and not self.passable_mask[t[direction][1]][motion_mode]:
                 t[direction][1] = None
                 t[(direction + 1) % 8][1] = None
                 t[(direction + 7) % 8][1] = None
         if not allow_diagonal:
             t = [t[0], t[2], t[4], t[6]]
-        return [x for x in t if x[1] and self.passable_mask[x[1].row, x[1].col, motion_mode]]
+        return [x for x in t if x[1] and self.passable_mask[x[1]][motion_mode]]
     # path搜索两点间最短路径。
     def path(self, FROM, to, motion_mode, allow_diagonal, point_data):
         if FROM["row"] < 0 or FROM["col"] < 0 or FROM["row"] >= self.height or FROM["col"] >= self.width or to["row"] < 0 or to["col"] < 0 or to["row"] >= self.height or to["col"] >= self.width:
             return None
         path = None
         # tile, distance
-        queue = [(self.tiles[FROM["row"]][FROM["col"]], 0.0)]
+        queue = [((FROM["row"], FROM["col"]), 0.0)]
         self._visited_mask.fill(False)
         self._direction_map.fill(-1)
         self._distance_map.fill(np.inf)
         while len(queue):
             head_tile, head_dist = queue.pop(0)
-            self._visited_mask[head_tile.row, head_tile.col] = True
-            if head_tile.row == to["row"] and head_tile.col == to["col"]:
+            self._visited_mask[head_tile] = True
+            if head_tile[0] == to["row"] and head_tile[1] == to["col"]:
                 # connect pointers
-                row, col = head_tile.row, head_tile.col
+                row, col = head_tile
                 path = []
                 while True:
                     path.insert(0, {"row": row, "col": col})
@@ -90,13 +79,13 @@ class PathFinder:
                     col += (5 <= direction <= 7) - (1 <= direction <= 3)
                 break
             for dist, tile, DIRE in self.getAvailableNeighbours(head_tile, allow_diagonal, motion_mode):
-                if self._visited_mask[tile.row, tile.col]: continue
-                if (self._direction_map[tile.row, tile.col] < 0
-                        or (dist + head_dist < self._distance_map[tile.row, tile.col]
-                            or dist + head_dist == self._distance_map[tile.row, tile.col]
-                            and DIRE < self._direction_map[tile.row, tile.col])):
-                    self._direction_map[tile.row, tile.col] = DIRE
-                    self._distance_map[tile.row, tile.col] = dist + head_dist
+                if self._visited_mask[tile]: continue
+                if (self._direction_map[tile] < 0
+                        or (dist + head_dist < self._distance_map[tile]
+                            or dist + head_dist == self._distance_map[tile]
+                            and DIRE < self._direction_map[tile])):
+                    self._direction_map[tile] = DIRE
+                    self._distance_map[tile] = dist + head_dist
                 a = len(queue)
                 while a > 0 and queue[a - 1][1] > head_dist: a -= 1
                 queue.insert(a, (tile, head_dist + dist))
@@ -133,6 +122,8 @@ class PathFinder:
                 motion_mode
             )[bool(i):])
         return ret
+    # 合并路径中可以直走的部分。
+    # 可以直走指的是线段端点指定的矩形内全是可通行地块。
     def clean_up_path(self, path, motion_mode):
         if len(path) <= 2: return path
         ret = [path[0], path[0]]

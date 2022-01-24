@@ -4,31 +4,34 @@ import database
 # 这片大地。
 
 class Tile:
-    def __init__(self, row, col, tileKey):
+    def __init__(self, row, col):
         self.row = row
         self.col = col
-        self.tileKey = tileKey
-        self.pointer = None
 
 class PathFinder:
     def __init__(self, map, predefines):
-        map = np.flipud(map)
-        self.height, self.width = map.shape
+        self.map = np.flipud(map)
+        self.height, self.width = self.map.shape
         self.tiles = [
             [
-                Tile(t, a, map[t, a] >> 8)
+                Tile(t, a)
                 for a in range(self.width)
             ]
             for t in range(self.height)
         ]
+        # 用法是self.passable_mask[row, col, motion_mode] → bool。
         self.passable_mask = np.moveaxis([
             # 地面单位寻找可通行地面单位且不是落穴的地块通行。
             # 有说法表示地面单位对空地块（tile_empty）也会绕行，但是游戏中没有出现在正常作战区域内的空地块，无法验证。
             # 我认为空地块可能是内部处理时地图外圈的哨兵元素。
-            np.bitwise_and(np.bitwise_and(map, 1) != 0, np.right_shift(map, 8) != database.tile_keys["tile_hole"]),
+            np.bitwise_and(np.bitwise_and(self.map, 1) != 0, np.right_shift(self.map, 8) != database.tile_keys["tile_hole"]),
             # 飞行单位寻找可通行飞行单位的地块通行。
-            np.bitwise_and(map, 2) != 0,
+            np.bitwise_and(self.map, 2) != 0,
         ], 0, -1)
+        # 寻路算法内部使用。
+        self._visited_mask = np.empty_like(self.map, dtype=np.bool8)
+        self._direction_map = np.empty_like(self.map, dtype=np.int8)
+        self._distance_map = np.empty_like(self.map, dtype=np.float32)
         # 放箱子时只检查有类型0检查点的路径，且只检查沿着类型0检查点能否通行（允许斜向）。
         if predefines and predefines["tokenInsts"]:
             for mm in predefines["tokenInsts"]:
@@ -38,7 +41,7 @@ class PathFinder:
         t = [
             # distance, tile, direction
             (lambda t: [
-                (1.414 if direction % 2 else 1) + (-1 if allow_diagonal and t and t.tileKey == database.tile_keys["tile_yinyang_switch"] else 0),
+                (1.414 if direction % 2 else 1) + (-1 if allow_diagonal and t and self.map[t.row, t.col] >> 8 == database.tile_keys["tile_yinyang_switch"] else 0),
                 t,
                 direction,
             ])(None if row < 0 or col < 0 or row >= self.height or col >= self.width else self.tiles[row][col])
@@ -54,13 +57,13 @@ class PathFinder:
             ])
         ]
         for direction in [0, 2, 4, 6]:
-            if not self.checkTilePassable(t[direction][1], motion_mode):
+            if t[direction][1] and not self.passable_mask[t[direction][1].row, t[direction][1].col, motion_mode]:
                 t[direction][1] = None
                 t[(direction + 1) % 8][1] = None
                 t[(direction + 7) % 8][1] = None
         if not allow_diagonal:
             t = [t[0], t[2], t[4], t[6]]
-        return [x for x in t if self.checkTilePassable(x[1], motion_mode)]
+        return [x for x in t if x[1] and self.passable_mask[x[1].row, x[1].col, motion_mode]]
     # motionMode：地面0还是飞行1
     def findPathBetween(self, FROM, to, motion_mode, allow_diagonal, point_data):
         if FROM["row"] < 0 or FROM["col"] < 0 or FROM["row"] >= self.height or FROM["col"] >= self.width or to["row"] < 0 or to["col"] < 0 or to["row"] >= self.height or to["col"] >= self.width:
@@ -68,28 +71,34 @@ class PathFinder:
         path = None
         # tile, distance
         queue = [(self.tiles[FROM["row"]][FROM["col"]], 0.0)]
-        visited_mask = np.zeros((self.height, self.width), dtype=np.bool8)
+        self._visited_mask.fill(False)
+        self._direction_map.fill(-1)
+        self._distance_map.fill(np.inf)
         while len(queue):
             head_tile, head_dist = queue.pop(0)
-            visited_mask[head_tile.row, head_tile.col] = True
+            self._visited_mask[head_tile.row, head_tile.col] = True
             if head_tile.row == to["row"] and head_tile.col == to["col"]:
                 # connect pointers
-                path = [{"row": head_tile.row, "col": head_tile.col}]
-                p = head_tile
-                while p.pointer:
-                    path.insert(0, {"row": p.pointer["tile"].row, "col": p.pointer["tile"].col})
-                    p = p.pointer["tile"]
+                row, col = head_tile.row, head_tile.col
+                path = []
+                while True:
+                    path.insert(0, {"row": row, "col": col})
+                    direction = int(self._direction_map[row, col])
+                    if direction < 0: break
+                    row += (3 <= direction <= 5) - (direction <= 1 or direction >= 7)
+                    col += (5 <= direction <= 7) - (1 <= direction <= 3)
                 break
             for dist, tile, DIRE in self.getAvailableNeighbours(head_tile, allow_diagonal, motion_mode):
-                if visited_mask[tile.row, tile.col]: continue
-                if not tile.pointer or (dist + head_dist < tile.pointer["dist"] or dist + head_dist == tile.pointer["dist"] and DIRE < tile.pointer["direction"]):
-                    tile.pointer = {"tile": head_tile, "dist": dist + head_dist, "direction": DIRE}
+                if self._visited_mask[tile.row, tile.col]: continue
+                if (self._direction_map[tile.row, tile.col] < 0
+                        or (dist + head_dist < self._distance_map[tile.row, tile.col]
+                            or dist + head_dist == self._distance_map[tile.row, tile.col]
+                            and DIRE < self._direction_map[tile.row, tile.col])):
+                    self._direction_map[tile.row, tile.col] = DIRE
+                    self._distance_map[tile.row, tile.col] = dist + head_dist
                 a = len(queue)
                 while a > 0 and queue[a - 1][1] > head_dist: a -= 1
                 queue.insert(a, (tile, head_dist + dist))
-        for row in range(self.height):
-            for col in range(self.width):
-                self.tiles[row][col].pointer = None
         if not path: raise Exception("Invalid path")
         path[0]["reachOffset"] = FROM.get("reachOffset")
         path[-1]["reachOffset"] = to.get("reachOffset")
@@ -140,8 +149,6 @@ class PathFinder:
                     r = point
         ret.append(list[-1])
         return ret
-    def checkTilePassable(self, tile, motion_mode):
-        return tile and self.passable_mask[tile.row, tile.col, motion_mode]
 
 # 打印一幅二值图像。
 def imprint(img):

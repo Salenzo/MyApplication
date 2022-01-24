@@ -133,26 +133,17 @@ class PathFinder:
                 motion_mode
             )[bool(i):])
         return ret
-    def checkArea(self, a, b, motion_mode):
-        return np.all(self.passable_mask[
-            min(a[0], b[0]) : max(a[0], b[0]) + 1,
-            min(a[1], b[1]) : max(a[1], b[1]) + 1,
-            motion_mode
-        ])
     def clean_up_path(self, path, motion_mode):
         if len(path) <= 2: return path
-        r = None
-        start = path[0]
-        ret = [start]
+        ret = [path[0], path[0]]
         for point in path[1:]:
-            if self.checkArea((start["row"], start["col"]), (point["row"], point["col"]), motion_mode):
-                r = point
+            if np.all(self.passable_mask[
+                    min(ret[-2]["row"], point["row"]) : max(ret[-2]["row"], point["row"]) + 1,
+                    min(ret[-2]["col"], point["col"]) : max(ret[-2]["col"], point["col"]) + 1,
+                    motion_mode]):
+                ret[-1] = point
             else:
-                ret.append(r)
-                start = r
-                if self.checkArea((start["row"], start["col"]), (point["row"], point["col"]), motion_mode):
-                    r = point
-        ret.append(path[-1])
+                ret.append(point)
         return ret
 
 # 打印一幅二值图像。

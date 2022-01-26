@@ -11,6 +11,9 @@ io = SocketIO(app)
 def index():
     return render_template('index.html')
 
+@app.route('/pattern')
+def index():
+    return render_template('pattern.html')
 
 @io.on('connect')
 def connect():

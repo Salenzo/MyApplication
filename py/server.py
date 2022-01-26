@@ -12,7 +12,7 @@ def index():
     return render_template('index.html')
 
 @app.route('/pattern')
-def index():
+def pattern():
     return render_template('pattern.html')
 
 @io.on('connect')

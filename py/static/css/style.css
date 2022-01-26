@@ -1,6 +1,12 @@
-#patterns {
+* {
   margin: 0;
   padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  height: 100%;
+  font-size: min(92.5925925925926vh, 52.08333333333333vw);
 }
 
 li {
@@ -8,6 +14,10 @@ li {
   float: left;
   width: 20%;
   padding-top: 20%;
+}
+
+button {
+  font: inherit;
 }
 
 #floor {

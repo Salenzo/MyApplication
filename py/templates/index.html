@@ -3,19 +3,59 @@
 	<head>
 		<meta charset="utf-8">
 		<title>......</title>
+		<link rel="stylesheet" type="text/css" href="{{url_for('static', filename='css/style.css')}}">
 	</head>
 	<body>
-		<button id="output">哼哼</button>
+		<img
+			src="btn_system.png"
+		>
+    <img
+			src="btn_speed_1x.png"
+			style="position:fixed;right:.182em;top:.021em;width:.176em;height:.146em"
+			onclick="src=`btn_speed_${speed=speed%3+1}x.png`"
+		>
+		<img
+			src="btn_pause.png"
+			style="position:fixed;right:.024em;top:.021em;width:.192em;height:.158em"
+			onclick="src=(play=!play)?'btn_pause.png':'btn_play.png'"
+		>
+		<div
+			style="
+				position: fixed;
+				left: 50vw;
+				margin-left: -0.2785em;
+				top: 0.016em;
+				background: url(sprite_info_bar_2part.png);
+				background-size: 100%;
+				width: 0.557em;
+				height: 0.06em;
+				color: white;
+				line-height: 0.06em;
+			"
+		>
+			<span style="font-size: .05em; vertical-align: top;">1145141919810</span>
+		</div>
+		<button id="output"></button>
 		<script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.min.js"></script>
 		<script>
-			function frame() {
-				socket.emit("update");
-				requestAnimationFrame(frame);
-			}
+			let speed = 1;
+			let play = true;
+			const frame = [
+				() => requestAnimationFrame(frame[1]),
+				() => {
+					play && socket.emit("update");
+					requestAnimationFrame(frame[speed - 1]);
+				},
+				() => {
+					play && socket.emit("update");
+					play && socket.emit("update");
+					requestAnimationFrame(frame[1]);
+				}
+			];
 			let socket = io.connect();
-			socket.on("connect", frame);
+			socket.on("connect", frame[1]);
 			socket.on("update", (t) => {
-				output.textContent = t;
+				output.textContent = t%60;
 			});
 		</script>
 	</body>

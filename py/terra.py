@@ -1,5 +1,5 @@
 import numpy as np
-import database
+import ptilopsis
 
 # 这片大地。
 
@@ -13,7 +13,7 @@ class PathFinder:
             # 地面单位寻找可通行地面单位且不是落穴的地块通行。
             # 有说法表示地面单位对空地块（tile_empty）也会绕行，但是游戏中没有出现在正常作战区域内的空地块，无法验证。
             # 我认为空地块可能是内部处理时地图外圈的哨兵元素。
-            np.bitwise_and(np.bitwise_and(self.map, 1) != 0, np.right_shift(self.map, 8) != database.tile_keys["tile_hole"]),
+            np.bitwise_and(np.bitwise_and(self.map, 1) != 0, np.right_shift(self.map, 8) != ptilopsis.tile_keys["tile_hole"]),
             # 飞行单位寻找可通行飞行单位的地块通行。
             np.bitwise_and(self.map, 2) != 0,
         ], 0, -1)
@@ -30,7 +30,7 @@ class PathFinder:
         t = [
             # distance, tile, direction
             (lambda t: [
-                (1.414 if direction % 2 else 1) + (-1 if allow_diagonal and t and self.map[t] >> 8 == database.tile_keys["tile_yinyang_switch"] else 0),
+                (1.414 if direction % 2 else 1) + (-1 if allow_diagonal and t and self.map[t] >> 8 == ptilopsis.tile_keys["tile_yinyang_switch"] else 0),
                 t,
                 direction,
             ])(None if row < 0 or col < 0 or row >= self.height or col >= self.width else (row, col))
@@ -144,8 +144,8 @@ def imprint(img):
             print("[]" if tile else "--", end="")
         print()
 
-level = database.read_json("level_act16d5_ex06.json")
-pp = PathFinder(database.level_map(level), level["predefines"])
+level = ptilopsis.read_json("level_act16d5_ex06.json")
+pp = PathFinder(ptilopsis.level_map(level), level["predefines"])
 print(pp.route(
         { "row": 1, "col": 0 },
         [{ "position": { "row": 1, "col": 1 } }, { "position": { "row": 7, "col": 1 } }],

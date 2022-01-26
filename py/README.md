@@ -295,6 +295,7 @@ _Position = {
 		"allowDiagonalMove": bool,
 		"visitEveryTileCenter": bool,
 		"visitEveryNodeCenter": bool,
+		"visitEveryCheckPoint": bool,
 	}?),
 	"enemies": [],
 	"enemyDbRefs": arrayOf({

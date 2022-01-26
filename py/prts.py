@@ -236,7 +236,7 @@ def in_battle(img):
     ) < 5
 
 def main():
-    import database
+    import ptilopsis
     cv2.namedWindow("", cv2.WINDOW_KEEPRATIO)
     img0 = cv2.imread("b1.png")
     assert in_battle(img0), "b1.png不是战斗界面截图？"
@@ -245,7 +245,7 @@ def main():
     img2 = cv2.imread("b3.png")
     img3 = cv2.imread("b4.png")
     with open("level_a001_06.json") as f:
-        level = database.level_map(json.load(f))
+        level = ptilopsis.level_map(json.load(f))
     homography, bullet_time_homography = Perspective(level, img0, img1, img2, img3, 1)
     draw_reseau(img0, homography, level.shape)
 

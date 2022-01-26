@@ -1,0 +1,36 @@
+#patterns {
+  margin: 0;
+  padding: 0;
+}
+
+li {
+  display: block;
+  float: left;
+  width: 20%;
+  padding-top: 20%;
+  background-size: 30px;
+}
+
+#floor {
+  background: #e2e3de;
+  box-shadow: inset 15px 15px 25px rgba(0, 0, 0, 0.0114),
+    inset -15px -15px 25px rgba(255, 255, 255, 0.228);
+}
+
+#elevation {
+  background: #e2e3de;
+  box-shadow: inset 15px 15px 25px rgba(0, 0, 0, 0.0114),
+    inset -15px -15px 25px rgba(255, 255, 255, 0.228);
+  background-image: radial-gradient(yellow 10%, transparent 0);
+}
+#limitedFloor {
+  background: #43423e;
+  box-shadow: inset 15px 15px 25px rgba(0, 0, 0, 0.228),
+    inset -15px -15px 25px rgba(255, 255, 255, 0.0114);
+}
+
+#limitedElevation {
+  background: #43423e;
+  box-shadow: inset 15px 15px 25px rgba(0, 0, 0, 0.228),
+    inset -15px -15px 25px rgba(255, 255, 255, 0.0114);
+}

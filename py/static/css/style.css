@@ -8,7 +8,6 @@ li {
   float: left;
   width: 20%;
   padding-top: 20%;
-  background-size: 30px;
 }
 
 #floor {
@@ -24,6 +23,7 @@ li {
     radial-gradient(transparent 10%, black 0, black 11%, #e2e3de 0),
     conic-gradient(black .25turn, yellow 0, yellow .5turn, black 0, black .75turn, yellow 0);;
 }
+
 #limitedFloor {
   background: #43423e;
   box-shadow: inset 15px 15px 25px rgba(0, 0, 0, 0.228),

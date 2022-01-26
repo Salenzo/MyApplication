@@ -1,27 +1,22 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <title>Title</title>
-  </head>
-  <body>
-    <button id="output">哼哼</button>
-    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.min.js"></script>
-    <script>
-      let socket = io.connect(location.href);
-      
-      socket.on('connect', function () {
-          socket.emit('message', {data: 'I\'m connected!'});
-      });
-      
-      socket.on('message', function (msg) {
-        output.textContent = JSON.stringify(msg)
-      });
-
-      output.onclick = function (event) {
-          socket.emit('message', {data: 114514});
-          return false;
-      };
-    </script>
-  </body>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>......</title>
+	</head>
+	<body>
+		<button id="output">哼哼</button>
+		<script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.min.js"></script>
+		<script>
+			function frame() {
+				socket.emit("update");
+				requestAnimationFrame(frame);
+			}
+			let socket = io.connect();
+			socket.on("connect", frame);
+			socket.on("update", (t) => {
+				output.textContent = t;
+			});
+		</script>
+	</body>
 </html>

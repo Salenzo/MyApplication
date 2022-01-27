@@ -6,7 +6,16 @@
 	- [ ] 部署位识别
 	- [ ] 底栏干员识别
 - [ ] 干员头像/半身图自动爬取
-- [ ] 基建自动换班
+- [ ] 长草
+  - [ ] 切号登录
+  - [ ] （活动）签到
+  - [ ] 遍历好友
+  - [ ] 信用商店：绿票/理智排序购买
+  - [ ] 公开招募
+  - [ ] 加速换班（只要全换了就不用管心情了！）
+  - [ ] 自动打关（这个如何设置暂且不明）
+  - [ ] 自动使用即将过期的理智药
+  - [ ] 日常和周常任务
 - [ ] WEB作战模拟器
 - [ ] 自动打关
 
@@ -219,7 +228,6 @@ _Cost = {
 ## level_a001_06.json
 
 ```javascript
-const _Id = oneOfType(['enemy1000_Gopro', 'enemy1000_Gopro3', 'enemy1001_Bigbo', 'enemy1003_Ncbow2', 'enemy1008_Ghost']);
 _Offset = {
 	"x": number,
 	"y": number,
@@ -285,7 +293,7 @@ _Position = {
 		"spawnRandomRange": _Offset,
 		"spawnOffset": _Offset,
 		"checkpoints": arrayOf({
-			"type": number,
+			"type": (0=移动；1=罚站；5=入传送门；6=出传送门),
 			"time": number,
 			"position": _Position,
 			"reachOffset": _Offset,
@@ -300,7 +308,7 @@ _Position = {
 	"enemies": [],
 	"enemyDbRefs": arrayOf({
 		"useDb": bool,
-		"id": _Id,
+		"id": string,
 		"level": number,
 		"overwrittenData": {
 			"name": _OverwrittenDataItem,
@@ -334,20 +342,26 @@ _Position = {
 	"waves": arrayOf({
 		"preDelay": number,
 		"postDelay": number,
-		"maxTimeWaitingForNextWave": number,
+		"maxTimeWaitingForNextWave": number, // -1表示不限制等待时间
 		"fragments": arrayOf({
 			"preDelay": number,
 			"actions": arrayOf({
-				"actionType": number,
+				"actionType": (0=出怪；1=只展示红线；2=播放关卡内剧情；4=更改BGM；5=显示吐司；6=显示预定义角色实例（含部署动画）或卡片；7=施放敌人或装置技能；8=施放装置技能（猜想）),
+				// 吐司（toast）是出现新品种的敌人时在右上角弹出的提示。
+				// 8只在多维合作和风雪过境活动中使用。
 				"managedByScheduler": bool,
-				"key": _Id,
+				"key": string, // 敌人ID/剧情文件名/BGM键/角色ID等
 				"count": number,
 				"preDelay": number,
 				"interval": number,
 				"routeIndex": number,
-				"blockFragment": bool,
-				"autoPreviewRoute": bool,
+				"blockFragment": bool, // 用于教学关、剧情关，暂停战斗进程
+				"autoPreviewRoute": bool, // actionType为0时可自动提前显示红线。actionType为1，这个又不是true的话大概就寄了
 				"isUnharmfulAndAlwaysCountAsKilled": bool,
+				"hiddenGroup": any,
+				"randomSpawnGroupKey": any,
+				"weight": number, // 权重，集成战略中使用
+				"dontBlockWave": bool,
 			}),
 			"name": string?, // 编辑器使用
 		}),
@@ -386,3 +400,9 @@ print(", ".join((lambda cv2: ["%#04x" % x for x in cv2.img_hash.AverageHash_crea
 - 随时间增强的基建技能，换人时放在原格子位上可以保留技能增强效果。
 
 似乎有三套属性键。天赋中的attributeType用整数索引，角色成长曲线用小驼峰，各处黑板用蛇皮下划线。复杂。
+
+TR-4中有两只猎狗（弱），该敌人定义在关卡内，为关卡特定敌人，不引用敌兵数据库（`"useDb": false`）。一般而言，即使需要修改属性，也在数据库条目基础上修改，并不需要创建关卡本地敌人副本。
+正常通关时第二、三只猎狗（弱）会被芬阻挡，芬击杀它们的效率比旁边的翎羽击杀猎狗的效率高。这个教学设计使我对两种先锋产生了不太经得起实战检验的认知。
+
+待测地图：https://www.bilibili.com/video/BV1xQ4y1o72V
+https://bbs.nga.cn/read.php?tid=25525618

@@ -144,7 +144,7 @@ def imprint(img):
             print("[]" if tile else "--", end="")
         print()
 
-level = ptilopsis.read_json("level_act16d5_ex06.json")
+level = ptilopsis.read_json("level_main_01-07.json")
 pp = PathFinder(ptilopsis.level_map(level), level["predefines"])
 print(pp.route(
         { "row": 1, "col": 0 },

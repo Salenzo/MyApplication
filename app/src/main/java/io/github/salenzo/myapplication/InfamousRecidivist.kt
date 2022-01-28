@@ -53,6 +53,7 @@ class InfamousRecidivistService :	AccessibilityService() {
 	var mtvOutput2: TextView? = null
 	var mtvOutput3: TextView? = null
 	var mllTouch: LinearLayout? = null
+
 	@SuppressLint("ClickableViewAccessibility")
 	override fun onServiceConnected() {
 		// “迫真应用”正在运行
@@ -132,14 +133,12 @@ class InfamousRecidivistService :	AccessibilityService() {
 				visibility = ViewGroup.GONE
 			})
 			addView(Button(this@InfamousRecidivistService).apply {
-				text = "Python"
+				text = "View?"
 				layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
 				setOnClickListener {
-					val x = Python.getInstance().getModule("pymain").callAttr("aaa", "我${BuildConfig.APPLICATION_ID}用的CV版本是").toString()
-					Toast.makeText(this@InfamousRecidivistService, x, Toast.LENGTH_SHORT)
-					this.text = x
+					this.text = "x"
 				}
-				visibility = ViewGroup.GONE
+				//visibility = ViewGroup.GONE
 			})
 			addView(Button(this@InfamousRecidivistService).apply {
 				text = "录屏"
@@ -231,10 +230,10 @@ class InfamousRecidivistService :	AccessibilityService() {
 			// 路由地址参数是自带一个^锚定字符串开头的正则表达式。
 			this.get("/") { request, response ->
 				response.send(htmlHeader +
-					"<style>*{margin:0;padding:0}textarea{border:0;width:99vw;height:99vh}</style>" +
+					"<style>*{margin:0;padding:0}textarea{width:90vw;height:90vh}</style>" +
 					"<form method=post><input name=filename value=app.py><input type=submit>\n" +
 					"<a href=reload>再运行</a>\n" +
-					"<a href=reset title=将会删除提交的所有文件，只留下空的app.py。 onclick=if(!confirm(title))event.preventDefault()>删光</a>" +
+					"<a href=reset title=将会删除提交的所有文件，只留下空的app.py。 onclick=confirm(title)||event.preventDefault()>删光</a>" +
 					"<textarea name=contents>" +
 					f.readText().replace("&", "&amp;").replace("<", "&lt;")
 				)
@@ -324,9 +323,11 @@ class InfamousRecidivistService :	AccessibilityService() {
 			lineTo(x2, y2)
 		}, 0, (duration * 1000).toLong())).build(), null, null)
 	}
+
 	fun tap(x: Float, y: Float) {
 		swipe(x - 1, y - 1, x + 1, y + 1, 0.02f)
 	}
+
 	fun screenshot(): PyObject? {
 		return SelectDeviceActivity.deimg()?.let {
 			val byteBuffer: ByteBuffer = ByteBuffer.allocate(it.rowBytes * it.height)
@@ -335,6 +336,7 @@ class InfamousRecidivistService :	AccessibilityService() {
 			Python.getInstance().getModule("pymain").callAttr("convert_jarray_to_cv2", byteBuffer.array(), 1920, 1080)
 		}
 	}
+
 	fun log(s: String, style: Int) {
 		val styleSpan = when (style) {
 			0 -> StyleSpan(Typeface.BOLD_ITALIC) // stdin
@@ -347,9 +349,11 @@ class InfamousRecidivistService :	AccessibilityService() {
 			mtvOutput0?.text = SpannableString(ss).apply { setSpan(styleSpan, 8, ss.length, 0) }
 		}
 	}
+
 	fun log(s: PyObject) {
 		log(s.toString(), 1)
 	}
+
 	fun imshow(name: String, mat: PyObject) {
 		val shape = mat.get("shape")!!.asList()
 		val bitmap = Bitmap.createBitmap(
@@ -362,6 +366,7 @@ class InfamousRecidivistService :	AccessibilityService() {
 			(mllTouch?.getChildAt(0) as ImageView?)?.setImageBitmap(bitmap)
 		}
 	}
+
 	private fun findScrollableNode(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {
 		val deque: ArrayDeque<AccessibilityNodeInfo> = ArrayDeque()
 		deque.add(root)
@@ -376,6 +381,7 @@ class InfamousRecidivistService :	AccessibilityService() {
 		}
 		return null
 	}
+
 	override fun onAccessibilityEvent(event: AccessibilityEvent) {
 		var root = event.source
 		while (root != null) {
@@ -383,8 +389,10 @@ class InfamousRecidivistService :	AccessibilityService() {
 			root = root.parent
 		}
 	}
+
 	override fun onInterrupt() {
 	}
+
 	override fun getRootInActiveWindow(): AccessibilityNodeInfo? {
 		return super.getRootInActiveWindow() ?: mLastKnownRoot
 	}

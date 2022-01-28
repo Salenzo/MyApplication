@@ -7,10 +7,6 @@ import cv2
 import numpy as np
 preloaded_modules = set(sys.modules.keys()) | {"infamous_recidivist_service"}
 
-# 保留测试用
-def aaa(a):
-    return a + cv2.__version__
-
 def kill_thread(tid):
     tid = ctypes.c_long(tid)
     ret = ctypes.pythonapi.PyThreadState_SetAsyncExc(tid, ctypes.py_object(SystemExit))
@@ -32,16 +28,24 @@ def redirected_print(*objects, sep=' ', end='\n', file=sys.stdout, flush=False):
         file.write(s)
         if flush: file.flush()
 
+# main函数可能在不重启Python解释器的情况下反复执行，务必注意所做工作应可重复。
+# service是InfamousRecidivistService实例。
 def main(service):
+    # 注入服务对象到模块缓存字典，以便用户代码import infamous_recidivist_service。
+    sys.modules["infamous_recidivist_service"] = service
     # 保证目标脚本在搜索路径中，以便其调用周围的模块文件。
     path = os.path.join(os.environ["HOME"], "py")
-    sys.modules["infamous_recidivist_service"] = service
     if path not in sys.path: sys.path.insert(0, path)
-    cv2.imshow = service.imshow
-    builtins.print = redirected_print
+    # 帮进程改变工作目录，以便脚本读取周围的数据文件。
+    # Java侧受多线程概念根植影响，没有工作目录一说。
     os.chdir(path)
+    # 替换被用烂的输出函数，以便脚本在电脑和手机上都能正常运行。
+    builtins.print = redirected_print
+    cv2.imshow = service.imshow
+    # 执行目标脚本。
     code = open("app.py").read()
     try:
+        # 必须传入全局变量字典，否则exec在当前上下文执行代码。
         exec(code, {})
     except SystemExit:
         pass

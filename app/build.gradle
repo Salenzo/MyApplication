@@ -24,6 +24,11 @@ android {
 				install "kiwisolver" // 仓库里有，很神奇，就加了这个依赖。反正又没人在意APK是不是有114GB那么大。
 			}
 		}
+		externalNativeBuild {
+			cmake {
+				cppFlags ""
+			}
+		}
 	}
 	compileOptions {
 		targetCompatibility 1.8
@@ -36,6 +41,12 @@ android {
 	}
 	kotlinOptions {
 		jvmTarget = '1.8' // Java 7 not supported by kotlinOptions jvmTarget
+	}
+	externalNativeBuild {
+		cmake {
+			path file('src/main/cpp/CMakeLists.txt')
+			version '3.10.2'
+		}
 	}
 }
 

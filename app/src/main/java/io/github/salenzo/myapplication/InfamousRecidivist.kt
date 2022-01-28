@@ -8,17 +8,20 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.graphics.*
-import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.ColorDrawable
 import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
-import android.os.Parcel
-import android.text.*
+import android.text.Layout
+import android.text.SpannableString
+import android.text.TextUtils
 import android.text.style.ForegroundColorSpan
 import android.text.style.StyleSpan
 import android.util.Log
-import android.view.*
+import android.view.Display
+import android.view.Gravity
+import android.view.ViewGroup
+import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.*
@@ -29,6 +32,7 @@ import com.koushikdutta.async.http.body.UrlEncodedFormBody
 import com.koushikdutta.async.http.server.AsyncHttpServer
 import java.io.File
 import java.io.IOException
+import java.lang.reflect.Field
 import java.net.DatagramSocket
 import java.net.InetAddress
 import java.nio.ByteBuffer
@@ -47,6 +51,12 @@ import kotlin.io.path.deleteExisting
 
 @SuppressLint("SetTextI18n", "ObsoleteSdkInt")
 class InfamousRecidivistService :	AccessibilityService() {
+	companion object {
+		init {
+			System.loadLibrary("myapplication")
+	  }
+	}
+
 	var mLastKnownRoot: AccessibilityNodeInfo? = null
 	var mPythonThread: Thread? = null
 	var mPythonThreadId: Long = -1
@@ -432,5 +442,16 @@ class InfamousRecidivistService :	AccessibilityService() {
 
 	override fun getRootInActiveWindow(): AccessibilityNodeInfo? {
 		return super.getRootInActiveWindow() ?: mLastKnownRoot
+	}
+
+	external fun moretest(): String
+
+	fun testtt() {
+		//val f1: Field = this.javaClass.superclass.getDeclaredField("mConnectionId")
+		val f1: Field = this.javaClass.superclass.getDeclaredField("ERROR_TAKE_SCREENSHOT_INVALID_DISPLAY")
+		f1.isAccessible = true
+		//f1.set(this, "reflecting on life")
+		val str1 = f1.get(this) as Int
+		log("field: $str1; ${moretest()}", 1)
 	}
 }

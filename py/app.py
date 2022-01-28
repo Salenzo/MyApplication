@@ -1,19 +1,9 @@
-import sys
 import time
 import json
 import cv2
 import numpy as np
+import infamous_recidivist_service as adb
 import prts
-
-if 'adb' in globals():
-    def print(*objects, sep=' ', end='\n', file=sys.stdout, flush=False):
-        s = sep.join(map(str, objects)) + end
-        if file is sys.stdout or file is sys.stderr:
-            adb.log(s)
-        else:
-            file.write(s)
-            if flush:
-                file.flush()
 
 def screenshot(drop_count = 0):
     while True:
@@ -107,7 +97,9 @@ def adb_main():
                 break
     cv2.imshow("", img1)
     print("结束。")
-if "adb" in globals():
+
+# 真正的adb提供imshow函数，stub没有。
+if hasattr(adb, "imshow"):
     adb_main()
 else:
     print("要传到手机上运行。")

@@ -1,10 +1,11 @@
 import os
 import sys
 import ctypes
+import builtins
 import traceback
 import cv2
 import numpy as np
-preloaded_modules = set(sys.modules.keys())
+preloaded_modules = set(sys.modules.keys()) | {"infamous_recidivist_service"}
 
 # 保留测试用
 def aaa(a):
@@ -15,7 +16,6 @@ def kill_thread(tid):
     ret = ctypes.pythonapi.PyThreadState_SetAsyncExc(tid, ctypes.py_object(SystemExit))
     if ret != 1:
         ctypes.pythonapi.PyThreadState_SetAsyncExc(tid, None)
-    print("kill_thread = " + str(ret))
     return ret
 
 def convert_jarray_to_cv2(a, width, height):
@@ -24,18 +24,25 @@ def convert_jarray_to_cv2(a, width, height):
 def convert_cv2_to_1darray(a):
     return cv2.cvtColor(a.astype(np.uint8), cv2.COLOR_RGB2BGRA).flatten()
 
+def redirected_print(*objects, sep=' ', end='\n', file=sys.stdout, flush=False):
+    s = sep.join(map(str, objects)) + end
+    if file is sys.stdout or file is sys.stderr:
+        sys.modules["infamous_recidivist_service"].log(s)
+    else:
+        file.write(s)
+        if flush: file.flush()
+
 def main(service):
     # 保证目标脚本在搜索路径中，以便其调用周围的模块文件。
-    global adb
     path = os.path.join(os.environ["HOME"], "py")
-    if "adb" not in globals():
-        adb = service
-        sys.path.insert(0, path)
-        cv2.imshow = adb.imshow
+    sys.modules["infamous_recidivist_service"] = service
+    if path not in sys.path: sys.path.insert(0, path)
+    cv2.imshow = service.imshow
+    builtins.print = redirected_print
     os.chdir(path)
     code = open("app.py").read()
     try:
-        exec(code, {"adb": service})
+        exec(code, {})
     except SystemExit:
         pass
     except Exception as e:

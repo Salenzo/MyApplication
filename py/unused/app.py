@@ -88,7 +88,6 @@ class imgOper(object):
 #ImgO = imgOper('F9.png')
 #b, g, ImgO.img = cv2.split(ImgO.img)
 #ImgO.img = cv2.resize(ImgO.img, (ImgO.img.shape[1] * 480 // ImgO.img.shape[0], 480), interpolation=cv2.INTER_LINEAR)
-# 真正的计算机图形学家不需要imshow，都是用print看图像的。
 #cv2.imshow('wtf ok it works', cv2.imread('F9.png'))
 
 

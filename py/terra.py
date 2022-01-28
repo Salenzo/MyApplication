@@ -138,6 +138,7 @@ class PathFinder:
         return ret
 
 # 打印一幅二值图像。
+# 真正的计算机图形学家不需要imshow，都是用print看图像的。
 def imprint(img):
     for row in img:
         for tile in row:

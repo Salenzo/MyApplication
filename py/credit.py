@@ -1,4 +1,3 @@
-from pickletools import int4
 import numpy as np
 
 # 物品id 数量 信用
@@ -11,7 +10,7 @@ data = np.zeros((10, 3), dtype=int)
 expectedSane = {0: 3.24}
 
 
-def creditdecide(data, expectedSane):
+def creditDecide(data, expectedSane):
     worth = np.zeros(10, dtype=int)
     for i in range(0, 10):
         worth[i] = expectedSane[data[i][0]]*data[i][1]/data[i][2]

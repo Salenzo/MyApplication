@@ -33,6 +33,7 @@
 import time
 import cv2
 import numpy as np
+import infamous_recidivist_service as adb
 
 t0 = time.time()
 
@@ -41,25 +42,15 @@ list = [None] * 60
 for i in range(60):
     list[i] = adb.screenshot()
     if list[i] is not None:
-        adb.log(f"截了第{i}张（丢了{i - j}张）。")
+        print(f"截了第{i}张（丢了{i - j}张）。")
         j = j + 1
 
 t1 = time.time()
 
 for i in range(60):
     if list[i] is not None:
-        adb.log(f"正在保存第{i}张。")
+        print(f"正在保存第{i}张。")
         cv2.imwrite(f"{i}.png", list[i])
 
-adb.log(f"截取{j}帧到OpenCV图像共计{t1 - t0}秒。")
-```
-
-## 巧妙的方法
-
-重新定义print函数以便同时支持在手机和其他Python运行环境中调试。内置的print函数有更精美的函数签名，在app.py中使用了。
-
-```python
-if 'adb' in globals():
-    def print(x):
-        adb.log(x)
+print(f"截取{j}帧到OpenCV图像共计{t1 - t0}秒。")
 ```

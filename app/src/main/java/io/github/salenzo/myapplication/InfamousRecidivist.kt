@@ -12,6 +12,8 @@ import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.ColorDrawable
 import android.media.AudioManager
 import android.os.Build
+import android.os.Bundle
+import android.os.Parcel
 import android.text.*
 import android.text.style.ForegroundColorSpan
 import android.text.style.StyleSpan
@@ -36,6 +38,8 @@ import java.nio.file.SimpleFileVisitor
 import java.nio.file.attribute.BasicFileAttributes
 import java.text.SimpleDateFormat
 import java.util.*
+import java.util.concurrent.FutureTask
+import java.util.concurrent.TimeUnit
 import kotlin.collections.ArrayDeque
 import kotlin.concurrent.thread
 import kotlin.io.path.deleteExisting
@@ -136,17 +140,27 @@ class InfamousRecidivistService :	AccessibilityService() {
 				text = "View?"
 				layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
 				setOnClickListener {
-					this.text = "x"
+					val v = rootInActiveWindow
+					if (v != null) {
+						//val b = Bitmap.createBitmap(v.width, v.height, Bitmap.Config.ARGB_8888)
+						//val c = Canvas(b)
+						//v.draw(c)
+						//this.background = BitmapDrawable(this@InfamousRecidivistService.resources, b)
+						this.text = "${v.viewIdResourceName}\n${v.text}\n${v.hintText}\n${v.windowId}"
+						findFocus(AccessibilityNodeInfo.FOCUS_INPUT)?.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, Bundle().apply {
+							putString(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, "114514")
+						})
+					} else {
+						this.text = "hengheng"
+					}
 				}
 				//visibility = ViewGroup.GONE
 			})
 			addView(Button(this@InfamousRecidivistService).apply {
 				text = "录屏"
-				width = 192
-				height = 108
 				setOnClickListener {
 					text = "开始了吗？"
-					background = BitmapDrawable(resources, SelectDeviceActivity.deimg())
+					//background = BitmapDrawable(resources, SelectDeviceActivity.deimg())
 				}
 				visibility = ViewGroup.GONE
 			})
@@ -220,7 +234,7 @@ class InfamousRecidivistService :	AccessibilityService() {
 		val codeDir = File(filesDir, "py")
 		codeDir.mkdir()
 		val f = File(codeDir, "app.py")
-		if (!f.exists()) f.writeBytes(byteArrayOf())
+		if (!f.exists()) f.writeText("import infamous_recidivist_service as adb\n\n")
 		startPython()
 		mServer = AsyncHttpServer().apply {
 			val htmlHeader = "<!DOCTYPE html>\n" +
@@ -276,7 +290,7 @@ class InfamousRecidivistService :	AccessibilityService() {
 					}
 				})
 				codeDir.mkdir()
-				f.writeBytes(byteArrayOf())
+				f.writeText("import infamous_recidivist_service as adb\n\n# ...as you should have known.")
 				stopPython()
 				response.send("<!DOCTYPE html>\n<title>Breaking news</title>" +
 					"<a href=..>呜呼……</a>")
@@ -329,11 +343,34 @@ class InfamousRecidivistService :	AccessibilityService() {
 	}
 
 	fun screenshot(): PyObject? {
-		return SelectDeviceActivity.deimg()?.let {
-			val byteBuffer: ByteBuffer = ByteBuffer.allocate(it.rowBytes * it.height)
+		return when (2) {
+			1 -> SelectDeviceActivity.deimg()
+			2 -> {
+				// 主线程里调用这个会不会死锁啊？
+				val fu = FutureTask {}
+				var b: Bitmap? = null
+				takeScreenshot(Display.DEFAULT_DISPLAY, mainExecutor, object : TakeScreenshotCallback {
+					override fun onSuccess(screenshot: ScreenshotResult) {
+						val hb = Bitmap.wrapHardwareBuffer(screenshot.hardwareBuffer, screenshot.colorSpace)!!
+						screenshot.hardwareBuffer.close()
+						b = hb.copy(Bitmap.Config.ARGB_8888, false)
+						fu.run()
+					}
+					override fun onFailure(errorCode: Int) {
+						fu.run()
+					}
+				})
+				fu.get(5, TimeUnit.SECONDS)
+				b
+			}
+			else -> null
+		}?.let {
+			val w = it.width
+			val h = it.height
+			val byteBuffer: ByteBuffer = ByteBuffer.allocate(it.rowBytes * h)
 			it.copyPixelsToBuffer(byteBuffer)
 			it.recycle()
-			Python.getInstance().getModule("pymain").callAttr("convert_jarray_to_cv2", byteBuffer.array(), 1920, 1080)
+			Python.getInstance().getModule("pymain").callAttr("convert_jarray_to_cv2", byteBuffer.array(), w, h)
 		}
 	}
 

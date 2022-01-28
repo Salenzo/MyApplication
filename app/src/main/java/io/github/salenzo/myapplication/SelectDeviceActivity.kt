@@ -42,9 +42,9 @@ class SelectDeviceActivity : Activity(), KeyEvent.Callback {
 	private val state = USBKeyboardState()
 	companion object {
 		var mMediaProjection: MediaProjection? = null
-		val mImageReader = ImageReader.newInstance(
-			1920,
-			1080,
+		var mImageReader = ImageReader.newInstance(
+			Resources.getSystem().displayMetrics.widthPixels,
+			Resources.getSystem().displayMetrics.heightPixels,
 			PixelFormat.RGBA_8888,  //此处必须和下面 buffer处理一致的格式 ，RGB_565在一些机器上出现兼容问题。
 			10
 		)
@@ -461,9 +461,9 @@ class SelectDeviceActivity : Activity(), KeyEvent.Callback {
 			val mediaProjection = (getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager).getMediaProjection(resultCode, data)
 			mediaProjection.createVirtualDisplay(
 				"screen-mirror",
-				1920,
-				1080,
-				Resources.getSystem().getDisplayMetrics().densityDpi,
+				resources.displayMetrics.widthPixels,
+				resources.displayMetrics.heightPixels,
+				resources.displayMetrics.densityDpi,
 				DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
 				mImageReader.getSurface(), null, null
 			)

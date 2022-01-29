@@ -12,16 +12,14 @@ import android.graphics.drawable.ColorDrawable
 import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
+import android.os.IBinder
 import android.text.Layout
 import android.text.SpannableString
 import android.text.TextUtils
 import android.text.style.ForegroundColorSpan
 import android.text.style.StyleSpan
 import android.util.Log
-import android.view.Display
-import android.view.Gravity
-import android.view.ViewGroup
-import android.view.WindowManager
+import android.view.*
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.*
@@ -447,11 +445,37 @@ class InfamousRecidivistService :	AccessibilityService() {
 	external fun moretest(): String
 
 	fun testtt() {
-		//val f1: Field = this.javaClass.superclass.getDeclaredField("mConnectionId")
-		val f1: Field = this.javaClass.superclass.getDeclaredField("ERROR_TAKE_SCREENSHOT_INVALID_DISPLAY")
+		val f1: Field = this.javaClass.superclass.getDeclaredField("mConnectionId")
 		f1.isAccessible = true
-		//f1.set(this, "reflecting on life")
-		val str1 = f1.get(this) as Int
-		log("field: $str1; ${moretest()}", 1)
+		val mConnectionId = f1.get(this) as Int
+		val str1: Any = this
+		// AccessibilityInteractionClient.getInstance(this).getConnection(mConnectionId);
+		val c1 = Class.forName("android.view.accessibility.AccessibilityInteractionClient")
+		val m1 = c1.getMethod("getInstance")
+		val m2 = c1.getMethod("getConnection", Int::class.java)
+		val o1 = m1.invoke(null)
+		val o2 = m2.invoke(o1, mConnectionId)
+		val f2: Field = this.javaClass.superclass.getField("ACCESSIBILITY_TAKE_SCREENSHOT_REQUEST_INTERVAL_TIMES_MS")
+		f2.isAccessible = true
+		f2.set(null, 1)
+		val m3 = Class.forName("com.android.server.LocalServices").getMethod("getService", Class::class.java)
+		//val o3 = m3.invoke(null, Class.forName("android.hardware.display.DisplayManagerInternal"))
+		if (Build.VERSION.SDK_INT >= 31) {
+			val m8 = SurfaceControl::class.java.getMethod("createDisplay", String::class.java, Boolean::class.java)
+			val o4 = m8.invoke(null, "scrcpy", false)
+			val c2 = Class.forName("android.view.SurfaceControl\$DisplayCaptureArgs")
+			val c3 = Class.forName("android.view.SurfaceControl\$DisplayCaptureArgs\$Builder")
+			val m5 = c3.getConstructor(IBinder::class.java)
+			val m6 = c3.getMethod("setSize", Int::class.java, Int::class.java)
+			val m7 = c3.getMethod("build")
+			val o5 = m7.invoke(m6.invoke(m5.newInstance(o4), 1920, 1080))
+			val m4 = SurfaceControl::class.java.getMethod("captureDisplay", c2)
+			val o6 = m4.invoke(null, o5)
+			log(">${o6.javaClass.name}", 1)
+		} else {
+			val m4 = SurfaceControl::class.java.getMethod("screenshot", Rect::class.java, Int::class.java, Int::class.java, Boolean::class.java, Int::class.java)
+			val o6 = m4.invoke(null, Rect(), 1920, 1080, false, Surface.ROTATION_0)
+			log("<${o6.javaClass.name}", 1)
+		}
 	}
 }

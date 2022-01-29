@@ -22,7 +22,7 @@
 		android:required="false"/>
 
 	<application
-		android:name="com.chaquo.python.android.PyApplication"
+		android:name=".MyApplication"
 		android:allowBackup="false"
 		android:icon="@android:drawable/ic_media_play"
 		android:label="迫真应用"

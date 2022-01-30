@@ -9,6 +9,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.graphics.*
 import android.graphics.drawable.ColorDrawable
+import android.hardware.display.DisplayManager
 import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
@@ -252,7 +253,7 @@ class InfamousRecidivistService :	AccessibilityService() {
 			// 路由地址参数是自带一个^锚定字符串开头的正则表达式。
 			this.get("/") { request, response ->
 				response.send(htmlHeader +
-					"<style>*{margin:0;padding:0}textarea{width:90vw;height:90vh}</style>" +
+					"<style>*{margin:0;padding:0}textarea{width:90vw;height:90vh}</style><center>" +
 					"<form method=post><input name=filename value=app.py><input type=submit>\n" +
 					"<a href=reload>再运行</a>\n" +
 					"<a href=reset title=将会删除提交的所有文件，只留下空的app.py。 onclick=confirm(title)||event.preventDefault()>删光</a>" +
@@ -339,11 +340,51 @@ class InfamousRecidivistService :	AccessibilityService() {
 		}
 	}
 
+	// dispatchGesture方法元初之时，滑动路径是以100毫秒为周期采样的。
+	// 为了解决Android 11才解决的AccessibilityService#dispatchGesture卡顿问题，我直接重写这个方法！
+	// 反射，嘿嘿，我的猴子补丁……
+	// 当然override是不可能override的，只有自己新建一个方法这样子。
+	var mGestureStatusCallbackSequence = 0
+	fun anotherDispatchGesture(gesture: GestureDescription): Boolean {
+		// 如果是Android 11及以上，就不用自己整了。
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+			return dispatchGesture(gesture, null, null)
+		}
+		// val connection: IAccessibilityServiceConnection = AccessibilityInteractionClient.getInstance().getConnection(mConnectionId) ?: return false
+		val mConnectionId = this.javaClass.superclass.getDeclaredField("mConnectionId").let {
+			it.isAccessible = true
+			it.get(this) as Int
+		}
+		val connection = Class.forName("android.view.accessibility.AccessibilityInteractionClient").let {
+			it.getMethod("getConnection", Int::class.java).invoke(
+				it.getMethod("getInstance").invoke(null),
+				mConnectionId
+			)
+		} ?: return false
+		// 但是这个与屏幕刷新率相关的采样率计算方式是Android 12才引入的。
+		// 抱歉了，Android 11用户……我就是。哦，我不是高刷新率屏用户啊，那没事了。
+		// 为了多显示器支持，需要GestureDescription提供getDisplayId方法，老版本没这支持。
+		val sampleTimeMs = (1000 / getSystemService(DisplayManager::class.java).getDisplay(Display.DEFAULT_DISPLAY).refreshRate).toInt()
+		// val steps: List<GestureDescription.GestureStep> = MotionEventGenerator.getGestureStepsFromGestureDescription(gesture, sampleTimeMs)
+		val steps = Class.forName("android.accessibilityservice.GestureDescription\$MotionEventGenerator")
+			.getMethod("getGestureStepsFromGestureDescription", GestureDescription::class.java, Int::class.java)
+			.invoke(null, gesture, sampleTimeMs)
+		// connection.sendGesture(mGestureStatusCallbackSequence++, ParceledListSlice(steps))
+		val classParceledListSlice = Class.forName("android.content.pm.ParceledListSlice")
+		Class.forName("android.accessibilityservice.IAccessibilityServiceConnection")
+			.getMethod("sendGesture", Int::class.java, classParceledListSlice).invoke(
+				connection,
+				mGestureStatusCallbackSequence++,
+				classParceledListSlice.getConstructor(java.util.List::class.java).newInstance(steps)
+			)
+		return true
+	}
+
 	fun swipe(x1: Float, y1: Float, x2: Float, y2: Float, duration: Float) {
-		dispatchGesture(GestureDescription.Builder().addStroke(StrokeDescription(Path().apply {
+		anotherDispatchGesture(GestureDescription.Builder().addStroke(StrokeDescription(Path().apply {
 			moveTo(x1, y1)
 			lineTo(x2, y2)
-		}, 0, (duration * 1000).toLong())).build(), null, null)
+		}, 0, (duration * 1000).toLong())).build())
 	}
 
 	fun tap(x: Float, y: Float) {

@@ -380,6 +380,7 @@ class InfamousRecidivistService :	AccessibilityService() {
 		return true
 	}
 
+	@Suppress("unused", "MemberVisibilityCanBePrivate")
 	fun swipe(x1: Float, y1: Float, x2: Float, y2: Float, duration: Float) {
 		anotherDispatchGesture(GestureDescription.Builder().addStroke(StrokeDescription(Path().apply {
 			moveTo(x1, y1)
@@ -387,15 +388,37 @@ class InfamousRecidivistService :	AccessibilityService() {
 		}, 0, (duration * 1000).toLong())).build())
 	}
 
+	@Suppress("unused", "MemberVisibilityCanBePrivate")
 	fun tap(x: Float, y: Float) {
 		swipe(x - 1, y - 1, x + 1, y + 1, 0.02f)
 	}
 
+	@Suppress("unused", "MemberVisibilityCanBePrivate")
+	fun action(action: Int) {
+		performGlobalAction(action)
+	}
+
+	@Suppress("unused", "MemberVisibilityCanBePrivate")
 	fun screenshot(): PyObject? {
-		return when (2) {
-			1 -> SelectDeviceActivity.deimg()
+		return when (1) {
+			1 -> {
+				SelectDeviceActivity.mMediaProjection?.let {
+					SelectDeviceActivity.mImageReader.acquireLatestImage()?.let { img ->
+						val plane = img.planes[0]
+						val rowPadding = plane.rowStride - plane.pixelStride * img.width
+						val b = Bitmap.createBitmap(
+							img.width + rowPadding / plane.pixelStride, img.height,
+							Bitmap.Config.ARGB_8888
+						)
+						b.copyPixelsFromBuffer(plane.buffer)
+						img.close()
+						b
+					}
+				}
+			}
 			2 -> {
 				// 主线程里调用这个会不会死锁啊？
+				// FutureTask#get能阻塞，也不知道get了啥。
 				val fu = FutureTask {}
 				var b: Bitmap? = null
 				takeScreenshot(Display.DEFAULT_DISPLAY, mainExecutor, object : TakeScreenshotCallback {
@@ -436,12 +459,14 @@ class InfamousRecidivistService :	AccessibilityService() {
 		}
 	}
 
+	@Suppress("unused", "MemberVisibilityCanBePrivate")
 	fun log(s: PyObject) {
 		log(s.toString(), 1)
 	}
 
+	@Suppress("unused", "MemberVisibilityCanBePrivate")
 	fun imshow(name: String, mat: PyObject) {
-		val shape = mat.get("shape")!!.asList()
+		val shape = mat["shape"]!!.asList()
 		val bitmap = Bitmap.createBitmap(
 			shape[1].toInt(), shape[0].toInt(),
 			Bitmap.Config.ARGB_8888
@@ -486,20 +511,10 @@ class InfamousRecidivistService :	AccessibilityService() {
 	external fun moretest(): String
 
 	fun testtt() {
-		val f1: Field = this.javaClass.superclass.getDeclaredField("mConnectionId")
-		f1.isAccessible = true
-		val mConnectionId = f1.get(this) as Int
-		val str1: Any = this
-		// AccessibilityInteractionClient.getInstance(this).getConnection(mConnectionId);
-		val c1 = Class.forName("android.view.accessibility.AccessibilityInteractionClient")
-		val m1 = c1.getMethod("getInstance")
-		val m2 = c1.getMethod("getConnection", Int::class.java)
-		val o1 = m1.invoke(null)
-		val o2 = m2.invoke(o1, mConnectionId)
+		log("114 -> ${moretest()}", 1)
 		val f2: Field = this.javaClass.superclass.getField("ACCESSIBILITY_TAKE_SCREENSHOT_REQUEST_INTERVAL_TIMES_MS")
 		f2.isAccessible = true
 		f2.set(null, 1)
-		val m3 = Class.forName("com.android.server.LocalServices").getMethod("getService", Class::class.java)
 		//val o3 = m3.invoke(null, Class.forName("android.hardware.display.DisplayManagerInternal"))
 		if (Build.VERSION.SDK_INT >= 31) {
 			val m8 = SurfaceControl::class.java.getMethod("createDisplay", String::class.java, Boolean::class.java)

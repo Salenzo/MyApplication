@@ -1,6 +1,7 @@
 package io.github.salenzo.myapplication
 
 import android.annotation.SuppressLint
+import android.annotation.TargetApi
 import android.app.Activity
 import android.app.NotificationManager
 import android.bluetooth.BluetoothAdapter
@@ -9,10 +10,8 @@ import android.bluetooth.BluetoothHidDevice
 import android.content.Context
 import android.content.Intent
 import android.content.res.Resources
-import android.graphics.Bitmap
 import android.graphics.PixelFormat
 import android.hardware.display.DisplayManager
-import android.media.Image
 import android.media.ImageReader
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
@@ -30,9 +29,10 @@ import android.widget.*
 import io.github.salenzo.myapplication.senders.KeyboardSender
 import io.github.salenzo.myapplication.senders.USBKeyboardState
 import java.lang.Integer.min
-import java.nio.ByteBuffer
 
+// 我调用API自有分寸，要你IDE管甚么！
 @Suppress("DEPRECATION")
+@TargetApi(Build.VERSION_CODES.R)
 @SuppressLint("ObsoleteSdkInt", "ResourceType", "ClickableViewAccessibility", "SetTextI18n")
 class SelectDeviceActivity : Activity(), KeyEvent.Callback {
 	private var bluetoothStatus: MenuItem? = null
@@ -48,25 +48,6 @@ class SelectDeviceActivity : Activity(), KeyEvent.Callback {
 			PixelFormat.RGBA_8888,  //此处必须和下面 buffer处理一致的格式 ，RGB_565在一些机器上出现兼容问题。
 			10
 		)
-		fun deimg(): Bitmap? {
-			if (mMediaProjection == null) return null
-			val img = mImageReader.acquireLatestImage()
-			if (img == null) return null
-			val width: Int = img.getWidth()
-			val height: Int = img.getHeight()
-			val planes: Array<Image.Plane> = img.getPlanes()
-			val buffer: ByteBuffer = planes[0].getBuffer()
-			val pixelStride: Int = planes[0].getPixelStride()
-			val rowStride: Int = planes[0].getRowStride()
-			val rowPadding = rowStride - pixelStride * width
-			val bitmap = Bitmap.createBitmap(
-				width + rowPadding / pixelStride, height,
-				Bitmap.Config.ARGB_8888
-			)
-			bitmap.copyPixelsFromBuffer(buffer)
-			img.close()
-			return bitmap
-		}
 	}
 	val ks = arrayOf(
 		intArrayOf(Int.MIN_VALUE, Int.MIN_VALUE, 4, 3, 0x2744, KeyEvent.KEYCODE_ESCAPE),
@@ -465,7 +446,7 @@ class SelectDeviceActivity : Activity(), KeyEvent.Callback {
 				resources.displayMetrics.heightPixels,
 				resources.displayMetrics.densityDpi,
 				DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
-				mImageReader.getSurface(), null, null
+				mImageReader.surface, null, null
 			)
 			mMediaProjection = mediaProjection
 		}

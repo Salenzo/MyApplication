@@ -16,6 +16,14 @@ def swipe(x0: float, y0: float, x1: float, y1: float, duration: float) -> None:
     """
     pass
 
+def action(action: int):
+    """模拟各种操作。
+    - 可用操作包括按返回键（1）、按主屏幕键（2）、最近应用列表（3）、打开通知栏（4）、打开快速设置（5）、打开关机菜单（6）、分屏（7）、锁屏（8）。截图（9）。
+    - 如果将来该列表有更新，参照Android开发者文档中以“GLOBAL_ACTION_”开头的常量。
+    https://developer.android.com/reference/android/accessibilityservice/AccessibilityService
+    """
+    pass
+
 def screenshot():
     """截取屏幕。
     如果没有权限，或者画面距上次截图以来没有变化，或者还没来得及截到最新一张图，返回None。成功截到的话，返回的是适合cv2直接处理的图像。

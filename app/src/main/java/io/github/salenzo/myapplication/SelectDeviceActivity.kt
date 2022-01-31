@@ -33,136 +33,129 @@ class SelectDeviceActivity : Activity(), KeyEvent.Callback {
 	private var hidd: BluetoothHidDevice? = null
 	private var host: BluetoothDevice? = null
 	private val state = USBKeyboardState()
+	data class Key(
+		val x: Int, val y: Int, val w: Int, val h: Int,
+		val label: String, val keyCode: Int,
+	)
 	val ks = arrayOf(
-		intArrayOf(Int.MIN_VALUE, Int.MIN_VALUE, 4, 3, 0x2744, KeyEvent.KEYCODE_ESCAPE),
-		intArrayOf(-1, Int.MIN_VALUE, 4, 3, Int.MIN_VALUE, Int.MIN_VALUE),
-		intArrayOf(-1, Int.MIN_VALUE, 4, 3, 0x2474, KeyEvent.KEYCODE_F1),
-		intArrayOf(-1, Int.MIN_VALUE, 4, 3, 0x2475, KeyEvent.KEYCODE_F2),
-		intArrayOf(-1, Int.MIN_VALUE, 4, 3, 0x2476, KeyEvent.KEYCODE_F3),
-		intArrayOf(-1, Int.MIN_VALUE, 4, 3, 0x2477, KeyEvent.KEYCODE_F4),
-		intArrayOf(-1, Int.MIN_VALUE, 2, 3, Int.MIN_VALUE, Int.MIN_VALUE),
-		intArrayOf(-1, Int.MIN_VALUE, 4, 3, 0x2478, KeyEvent.KEYCODE_F5),
-		intArrayOf(-1, Int.MIN_VALUE, 4, 3, 0x2479, KeyEvent.KEYCODE_F6),
-		intArrayOf(-1, Int.MIN_VALUE, 4, 3, 0x247a, KeyEvent.KEYCODE_F7),
-		intArrayOf(-1, Int.MIN_VALUE, 4, 3, 0x247b, KeyEvent.KEYCODE_F8),
-		intArrayOf(-1, Int.MIN_VALUE, 2, 3, Int.MIN_VALUE, Int.MIN_VALUE),
-		intArrayOf(-1, Int.MIN_VALUE, 4, 3, 0x247c, KeyEvent.KEYCODE_F9),
-		intArrayOf(-1, Int.MIN_VALUE, 4, 3, 0x247d, KeyEvent.KEYCODE_F10),
-		intArrayOf(-1, Int.MIN_VALUE, 4, 3, 0x247e, KeyEvent.KEYCODE_F11),
-		intArrayOf(-1, Int.MIN_VALUE, 4, 3, 0x247f, KeyEvent.KEYCODE_F12),
+		Key(0, 0, 4, 3, "\u2744", KeyEvent.KEYCODE_ESCAPE),
+		Key(8, 0, 4, 3, "F1", KeyEvent.KEYCODE_F1),
+		Key(12, 0, 4, 3, "F2", KeyEvent.KEYCODE_F2),
+		Key(16, 0, 4, 3, "F3", KeyEvent.KEYCODE_F3),
+		Key(20, 0, 4, 3, "F4", KeyEvent.KEYCODE_F4),
+		Key(26, 0, 4, 3, "F5", KeyEvent.KEYCODE_F5),
+		Key(30, 0, 4, 3, "F6", KeyEvent.KEYCODE_F6),
+		Key(34, 0, 4, 3, "F7", KeyEvent.KEYCODE_F7),
+		Key(38, 0, 4, 3, "F8", KeyEvent.KEYCODE_F8),
+		Key(44, 0, 4, 3, "F9", KeyEvent.KEYCODE_F9),
+		Key(48, 0, 4, 3, "F10", KeyEvent.KEYCODE_F10),
+		Key(52, 0, 4, 3, "F11", KeyEvent.KEYCODE_F11),
+		Key(56, 0, 4, 3, "F12", KeyEvent.KEYCODE_F12),
 
-		intArrayOf(Int.MIN_VALUE, 1, 4, 4, 0x60, KeyEvent.KEYCODE_APOSTROPHE),
-		intArrayOf(-1, 1, 4, 4, 0x31, KeyEvent.KEYCODE_1),
-		intArrayOf(-1, 1, 4, 4, 0x32, KeyEvent.KEYCODE_2),
-		intArrayOf(-1, 1, 4, 4, 0x33, KeyEvent.KEYCODE_3),
-		intArrayOf(-1, 1, 4, 4, 0x34, KeyEvent.KEYCODE_4),
-		intArrayOf(-1, 1, 4, 4, 0x35, KeyEvent.KEYCODE_5),
-		intArrayOf(-1, 1, 4, 4, 0x36, KeyEvent.KEYCODE_6),
-		intArrayOf(-1, 1, 4, 4, 0x37, KeyEvent.KEYCODE_7),
-		intArrayOf(-1, 1, 4, 4, 0x38, KeyEvent.KEYCODE_8),
-		intArrayOf(-1, 1, 4, 4, 0x39, KeyEvent.KEYCODE_9),
-		intArrayOf(-1, 1, 4, 4, 0x30, KeyEvent.KEYCODE_0),
-		intArrayOf(-1, 1, 4, 4, 0x2d, KeyEvent.KEYCODE_MINUS),
-		intArrayOf(-1, 1, 4, 4, 0x3d, KeyEvent.KEYCODE_EQUALS),
-		intArrayOf(-1, 1, 8, 4, 0x232b, KeyEvent.KEYCODE_DEL),
+		Key(0, 4, 4, 4, "`", KeyEvent.KEYCODE_APOSTROPHE),
+		Key(4, 4, 4, 4, "1", KeyEvent.KEYCODE_1),
+		Key(8, 4, 4, 4, "2", KeyEvent.KEYCODE_2),
+		Key(12, 4, 4, 4, "3", KeyEvent.KEYCODE_3),
+		Key(16, 4, 4, 4, "4", KeyEvent.KEYCODE_4),
+		Key(20, 4, 4, 4, "5", KeyEvent.KEYCODE_5),
+		Key(24, 4, 4, 4, "6", KeyEvent.KEYCODE_6),
+		Key(28, 4, 4, 4, "7", KeyEvent.KEYCODE_7),
+		Key(32, 4, 4, 4, "8", KeyEvent.KEYCODE_8),
+		Key(36, 4, 4, 4, "9", KeyEvent.KEYCODE_9),
+		Key(40, 4, 4, 4, "0", KeyEvent.KEYCODE_0),
+		Key(44, 4, 4, 4, "-", KeyEvent.KEYCODE_MINUS),
+		Key(48, 4, 4, 4, "=", KeyEvent.KEYCODE_EQUALS),
+		Key(52, 4, 8, 4, "\u232b", KeyEvent.KEYCODE_DEL),
 
-		intArrayOf(Int.MIN_VALUE, 20, 6, 4, 0x21b9, KeyEvent.KEYCODE_TAB),
-		intArrayOf(-1, 20, 4, 4, 0x51, KeyEvent.KEYCODE_Q),
-		intArrayOf(-1, 20, 4, 4, 0x57, KeyEvent.KEYCODE_W),
-		intArrayOf(-1, 20, 4, 4, 0x45, KeyEvent.KEYCODE_E),
-		intArrayOf(-1, 20, 4, 4, 0x52, KeyEvent.KEYCODE_R),
-		intArrayOf(-1, 20, 4, 4, 0x54, KeyEvent.KEYCODE_T),
-		intArrayOf(-1, 20, 4, 4, 0x59, KeyEvent.KEYCODE_Y),
-		intArrayOf(-1, 20, 4, 4, 0x55, KeyEvent.KEYCODE_U),
-		intArrayOf(-1, 20, 4, 4, 0x49, KeyEvent.KEYCODE_I),
-		intArrayOf(-1, 20, 4, 4, 0x4f, KeyEvent.KEYCODE_O),
-		intArrayOf(-1, 20, 4, 4, 0x50, KeyEvent.KEYCODE_P),
-		intArrayOf(-1, 20, 4, 4, 0x5b, KeyEvent.KEYCODE_LEFT_BRACKET),
-		intArrayOf(-1, 20, 4, 4, 0x5d, KeyEvent.KEYCODE_RIGHT_BRACKET),
-		intArrayOf(-1, 20, 6, 4, 0x5c, KeyEvent.KEYCODE_BACKSLASH),
+		Key(0, 8, 6, 4, "\u21b9", KeyEvent.KEYCODE_TAB),
+		Key(6, 8, 4, 4, "Q", KeyEvent.KEYCODE_Q),
+		Key(10, 8, 4, 4, "W", KeyEvent.KEYCODE_W),
+		Key(14, 8, 4, 4, "E", KeyEvent.KEYCODE_E),
+		Key(18, 8, 4, 4, "R", KeyEvent.KEYCODE_R),
+		Key(22, 8, 4, 4, "T", KeyEvent.KEYCODE_T),
+		Key(26, 8, 4, 4, "Y", KeyEvent.KEYCODE_Y),
+		Key(30, 8, 4, 4, "U", KeyEvent.KEYCODE_U),
+		Key(34, 8, 4, 4, "I", KeyEvent.KEYCODE_I),
+		Key(38, 8, 4, 4, "O", KeyEvent.KEYCODE_O),
+		Key(42, 8, 4, 4, "P", KeyEvent.KEYCODE_P),
+		Key(46, 8, 4, 4, "[", KeyEvent.KEYCODE_LEFT_BRACKET),
+		Key(50, 8, 4, 4, "]", KeyEvent.KEYCODE_RIGHT_BRACKET),
+		Key(54, 8, 6, 4, "\\", KeyEvent.KEYCODE_BACKSLASH),
 
-		intArrayOf(Int.MIN_VALUE, 30, 7, 4, 0x2328, KeyEvent.KEYCODE_LANGUAGE_SWITCH),
-		intArrayOf(-1, 30, 4, 4, 0x41, KeyEvent.KEYCODE_A),
-		intArrayOf(-1, 30, 4, 4, 0x53, KeyEvent.KEYCODE_S),
-		intArrayOf(-1, 30, 4, 4, 0x44, KeyEvent.KEYCODE_D),
-		intArrayOf(-1, 30, 4, 4, 0x46, KeyEvent.KEYCODE_F),
-		intArrayOf(-1, 30, 4, 4, 0x47, KeyEvent.KEYCODE_G),
-		intArrayOf(-1, 30, 4, 4, 0x48, KeyEvent.KEYCODE_H),
-		intArrayOf(-1, 30, 4, 4, 0x4a, KeyEvent.KEYCODE_J),
-		intArrayOf(-1, 30, 4, 4, 0x4b, KeyEvent.KEYCODE_K),
-		intArrayOf(-1, 30, 4, 4, 0x4c, KeyEvent.KEYCODE_L),
-		intArrayOf(-1, 30, 4, 4, 0x3b, KeyEvent.KEYCODE_SEMICOLON),
-		intArrayOf(-1, 30, 4, 4, 0x27, KeyEvent.KEYCODE_APOSTROPHE),
-		intArrayOf(-1, 30, 9, 4, 0x21b5, KeyEvent.KEYCODE_ENTER),
+		Key(0, 12, 7, 4, "\u2328", KeyEvent.KEYCODE_LANGUAGE_SWITCH),
+		Key(7, 12, 4, 4, "A", KeyEvent.KEYCODE_A),
+		Key(11, 12, 4, 4, "S", KeyEvent.KEYCODE_S),
+		Key(15, 12, 4, 4, "D", KeyEvent.KEYCODE_D),
+		Key(19, 12, 4, 4, "F", KeyEvent.KEYCODE_F),
+		Key(23, 12, 4, 4, "G", KeyEvent.KEYCODE_G),
+		Key(27, 12, 4, 4, "H", KeyEvent.KEYCODE_H),
+		Key(31, 12, 4, 4, "J", KeyEvent.KEYCODE_J),
+		Key(35, 12, 4, 4, "K", KeyEvent.KEYCODE_K),
+		Key(39, 12, 4, 4, "L", KeyEvent.KEYCODE_L),
+		Key(43, 12, 4, 4, ";", KeyEvent.KEYCODE_SEMICOLON),
+		Key(47, 12, 4, 4, "'", KeyEvent.KEYCODE_APOSTROPHE),
+		Key(51, 12, 9, 4, "\u21b5", KeyEvent.KEYCODE_ENTER),
 
-		intArrayOf(Int.MIN_VALUE, 50, 9, 4, 0x21e7, KeyEvent.KEYCODE_SHIFT_LEFT),
-		intArrayOf(-1, 50, 4, 4, 0x5a, KeyEvent.KEYCODE_Z),
-		intArrayOf(-1, 50, 4, 4, 0x58, KeyEvent.KEYCODE_X),
-		intArrayOf(-1, 50, 4, 4, 0x43, KeyEvent.KEYCODE_C),
-		intArrayOf(-1, 50, 4, 4, 0x56, KeyEvent.KEYCODE_V),
-		intArrayOf(-1, 50, 4, 4, 0x42, KeyEvent.KEYCODE_B),
-		intArrayOf(-1, 50, 4, 4, 0x4e, KeyEvent.KEYCODE_N),
-		intArrayOf(-1, 50, 4, 4, 0x4d, KeyEvent.KEYCODE_M),
-		intArrayOf(-1, 50, 4, 4, 0x2c, KeyEvent.KEYCODE_COMMA),
-		intArrayOf(-1, 50, 4, 4, 0x2e, KeyEvent.KEYCODE_PERIOD),
-		intArrayOf(-1, 50, 4, 4, 0x2f, KeyEvent.KEYCODE_SLASH),
-		intArrayOf(-1, 50, 11, 4, 0x21e7, KeyEvent.KEYCODE_SHIFT_RIGHT),
+		Key(0, 16, 9, 4, "\u21e7", KeyEvent.KEYCODE_SHIFT_LEFT),
+		Key(9, 16, 4, 4, "Z", KeyEvent.KEYCODE_Z),
+		Key(13, 16, 4, 4, "X", KeyEvent.KEYCODE_X),
+		Key(17, 16, 4, 4, "C", KeyEvent.KEYCODE_C),
+		Key(21, 16, 4, 4, "V", KeyEvent.KEYCODE_V),
+		Key(25, 16, 4, 4, "B", KeyEvent.KEYCODE_B),
+		Key(29, 16, 4, 4, "N", KeyEvent.KEYCODE_N),
+		Key(33, 16, 4, 4, "M", KeyEvent.KEYCODE_M),
+		Key(37, 16, 4, 4, ",", KeyEvent.KEYCODE_COMMA),
+		Key(41, 16, 4, 4, ".", KeyEvent.KEYCODE_PERIOD),
+		Key(45, 16, 4, 4, "/", KeyEvent.KEYCODE_SLASH),
+		Key(49, 16, 11, 4, "\u21e7", KeyEvent.KEYCODE_SHIFT_RIGHT),
 
-		intArrayOf(Int.MIN_VALUE, 60, 5, 4, 0x2303, KeyEvent.KEYCODE_CTRL_LEFT),
-		intArrayOf(-1, 60, 5, 4, 0x2318, KeyEvent.KEYCODE_META_LEFT),
-		intArrayOf(-1, 60, 5, 4, 0x2325, KeyEvent.KEYCODE_ALT_LEFT),
-		intArrayOf(-1, 60, 25, 4, 0x20, KeyEvent.KEYCODE_SPACE),
-		intArrayOf(-1, 60, 5, 4, 0x2325, KeyEvent.KEYCODE_ALT_RIGHT),
-		intArrayOf(-1, 60, 5, 4, 0x2318, KeyEvent.KEYCODE_META_RIGHT),
-		intArrayOf(-1, 60, 5, 4, 0x2261, KeyEvent.KEYCODE_MENU),
-		intArrayOf(-1, 60, 5, 4, 0x2303, KeyEvent.KEYCODE_CTRL_RIGHT),
+		Key(0, 20, 5, 4, "\u2303", KeyEvent.KEYCODE_CTRL_LEFT),
+		Key(5, 20, 5, 4, "\u2318", KeyEvent.KEYCODE_META_LEFT),
+		Key(10, 20, 5, 4, "\u2325", KeyEvent.KEYCODE_ALT_LEFT),
+		Key(15, 20, 25, 4, "", KeyEvent.KEYCODE_SPACE),
+		Key(40, 20, 5, 4, "\u2325", KeyEvent.KEYCODE_ALT_RIGHT),
+		Key(45, 20, 5, 4, "\u2318", KeyEvent.KEYCODE_META_RIGHT),
+		Key(50, 20, 5, 4, "\u2261", KeyEvent.KEYCODE_MENU),
+		Key(55, 20, 5, 4, "\u2303", KeyEvent.KEYCODE_CTRL_RIGHT),
 
-		intArrayOf(-1, Int.MIN_VALUE, 2, 20, Int.MIN_VALUE, Int.MIN_VALUE),
+		Key(62, 0, 4, 3, "\u25d9", KeyEvent.KEYCODE_SYSRQ),
+		Key(66, 0, 4, 3, "\u2195", KeyEvent.KEYCODE_SCROLL_LOCK),
+		Key(70, 0, 4, 3, "\u203c", KeyEvent.KEYCODE_BREAK),
+		Key(62, 4, 4, 4, "\u2324", KeyEvent.KEYCODE_INSERT),
+		Key(62, 8, 4, 4, "\u2326", KeyEvent.KEYCODE_FORWARD_DEL),
+		Key(66, 4, 4, 4, "|←", KeyEvent.KEYCODE_MOVE_HOME),
+		Key(66, 8, 4, 4, "→|", KeyEvent.KEYCODE_MOVE_END),
+		Key(70, 4, 4, 4, "↑↑", KeyEvent.KEYCODE_PAGE_UP),
+		Key(70, 8, 4, 4, "↓↓", KeyEvent.KEYCODE_PAGE_DOWN),
 
-		intArrayOf(-1, Int.MIN_VALUE, 4, 3, 0x25d9, KeyEvent.KEYCODE_SYSRQ),
-		intArrayOf(-1, Int.MIN_VALUE, 4, 3, 0x2195, KeyEvent.KEYCODE_SCROLL_LOCK),
-		intArrayOf(-1, Int.MIN_VALUE, 4, 3, 0x203c, KeyEvent.KEYCODE_BREAK),
-		intArrayOf(77, 1, 4, 4, 0x2324, KeyEvent.KEYCODE_INSERT),
-		intArrayOf(-1, 1, 4, 4, 0x21e4, KeyEvent.KEYCODE_MOVE_HOME),
-		intArrayOf(-1, 1, 4, 4, 0x21c8, KeyEvent.KEYCODE_PAGE_UP),
-		intArrayOf(77, 20, 4, 4, 0x2326, KeyEvent.KEYCODE_FORWARD_DEL),
-		intArrayOf(-1, 20, 4, 4, 0x21e5, KeyEvent.KEYCODE_MOVE_END),
-		intArrayOf(-1, 20, 4, 4, 0x21ca, KeyEvent.KEYCODE_PAGE_DOWN),
-		intArrayOf(77, -1, 4, 4, Int.MIN_VALUE, Int.MIN_VALUE),
-		intArrayOf(-1, -1, 4, 4, 0x2191, KeyEvent.KEYCODE_DPAD_UP),
-		intArrayOf(77, 60, 4, 4, 0x2190, KeyEvent.KEYCODE_DPAD_LEFT),
-		intArrayOf(-1, 60, 4, 4, 0x2193, KeyEvent.KEYCODE_DPAD_DOWN),
-		intArrayOf(-1, 60, 4, 4, 0x2192, KeyEvent.KEYCODE_DPAD_RIGHT),
+		Key(66, 16, 4, 4, "↑", KeyEvent.KEYCODE_DPAD_UP),
+		Key(62, 20, 4, 4, "←", KeyEvent.KEYCODE_DPAD_LEFT),
+		Key(66, 20, 4, 4, "↓", KeyEvent.KEYCODE_DPAD_DOWN),
+		Key(70, 20, 4, 4, "→", KeyEvent.KEYCODE_DPAD_RIGHT),
 
-		intArrayOf(-1, Int.MIN_VALUE, 2, 20, Int.MIN_VALUE, Int.MIN_VALUE),
+		Key(76, 4, 4, 4, "\u2115", KeyEvent.KEYCODE_NUM_LOCK),
+		Key(80, 4, 4, 4, "÷", KeyEvent.KEYCODE_NUMPAD_DIVIDE),
+		Key(84, 4, 4, 4, "×", KeyEvent.KEYCODE_NUMPAD_MULTIPLY),
+		Key(88, 4, 4, 4, "\u2212", KeyEvent.KEYCODE_NUMPAD_SUBTRACT),
+		Key(76, 8, 4, 4, "7", KeyEvent.KEYCODE_NUMPAD_7),
+		Key(80, 8, 4, 4, "8", KeyEvent.KEYCODE_NUMPAD_8),
+		Key(84, 8, 4, 4, "9", KeyEvent.KEYCODE_NUMPAD_9),
+		Key(88, 8, 4, 8, "+", KeyEvent.KEYCODE_NUMPAD_ADD),
+		Key(76, 12, 4, 4, "4", KeyEvent.KEYCODE_NUMPAD_4),
+		Key(80, 12, 4, 4, "5", KeyEvent.KEYCODE_NUMPAD_5),
+		Key(84, 12, 4, 4, "6", KeyEvent.KEYCODE_NUMPAD_6),
+		Key(76, 16, 4, 4, "1", KeyEvent.KEYCODE_NUMPAD_1),
+		Key(80, 16, 4, 4, "2", KeyEvent.KEYCODE_NUMPAD_2),
+		Key(84, 16, 4, 4, "3", KeyEvent.KEYCODE_NUMPAD_3),
+		Key(88, 16, 4, 8, "\u21b5", KeyEvent.KEYCODE_NUMPAD_ENTER),
+		Key(76, 20, 8, 4, "0", KeyEvent.KEYCODE_NUMPAD_0),
+		Key(84, 20, 4, 4, "\u00b7", KeyEvent.KEYCODE_NUMPAD_DOT),
 
-		intArrayOf(-1, 1, 4, 4, 0x2115, KeyEvent.KEYCODE_NUM_LOCK),
-		intArrayOf(-1, 1, 4, 4, 0xf7, KeyEvent.KEYCODE_NUMPAD_DIVIDE),
-		intArrayOf(-1, 1, 4, 4, 0xd7, KeyEvent.KEYCODE_NUMPAD_MULTIPLY),
-		intArrayOf(-1, 1, 4, 4, 0x2212, KeyEvent.KEYCODE_NUMPAD_SUBTRACT),
-		intArrayOf(92, 20, 4, 4, 0x37, KeyEvent.KEYCODE_NUMPAD_7),
-		intArrayOf(-1, 20, 4, 4, 0x38, KeyEvent.KEYCODE_NUMPAD_8),
-		intArrayOf(-1, 20, 4, 4, 0x39, KeyEvent.KEYCODE_NUMPAD_9),
-		intArrayOf(-1, 20, 4, 8, 0x2b, KeyEvent.KEYCODE_NUMPAD_ADD),
-		intArrayOf(92, 30, 4, 4, 0x34, KeyEvent.KEYCODE_NUMPAD_4),
-		intArrayOf(-1, 30, 4, 4, 0x35, KeyEvent.KEYCODE_NUMPAD_5),
-		intArrayOf(-1, 30, 4, 4, 0x36, KeyEvent.KEYCODE_NUMPAD_6),
-		intArrayOf(92, 50, 4, 4, 0x31, KeyEvent.KEYCODE_NUMPAD_1),
-		intArrayOf(-1, 50, 4, 4, 0x32, KeyEvent.KEYCODE_NUMPAD_2),
-		intArrayOf(-1, 50, 4, 4, 0x33, KeyEvent.KEYCODE_NUMPAD_3),
-		intArrayOf(-1, 50, 4, 8, 0x21b5, KeyEvent.KEYCODE_NUMPAD_ENTER),
-		intArrayOf(92, 60, 8, 4, 0x30, KeyEvent.KEYCODE_NUMPAD_0),
-		intArrayOf(-1, 60, 4, 4, 0xb7, KeyEvent.KEYCODE_NUMPAD_DOT),
-
-		intArrayOf(-1, Int.MIN_VALUE, 6, 20, Int.MIN_VALUE, Int.MIN_VALUE),
-
-		intArrayOf(-1, 1, 4, 4, 0x2102, KeyEvent.KEYCODE_CALCULATOR),
-		intArrayOf(-1, 1, 4, 4, 0x266a, KeyEvent.KEYCODE_MUSIC),
-		intArrayOf(-1, 1, 4, 4, 0x2302, KeyEvent.KEYCODE_HOME),
-		intArrayOf(-1, 1, 4, 4, 0x21e6, KeyEvent.KEYCODE_NAVIGATE_PREVIOUS),
-		intArrayOf(-1, 1, 4, 4, 0x21e8, KeyEvent.KEYCODE_NAVIGATE_NEXT),
-
-		//intArrayOf(Int.MIN_VALUE, -1, 20, 4, 0x61, -15)
+		Key(94, 4, 4, 4, "\u2102", KeyEvent.KEYCODE_CALCULATOR),
+		Key(94, 8, 4, 4, "\u266a", KeyEvent.KEYCODE_MUSIC),
+		Key(94, 12, 4, 4, "\u2302", KeyEvent.KEYCODE_HOME),
+		Key(94, 16, 4, 4, "\u21e6", KeyEvent.KEYCODE_NAVIGATE_PREVIOUS),
+		Key(94, 20, 4, 4, "\u21e8", KeyEvent.KEYCODE_NAVIGATE_NEXT),
 	)
 
 	lateinit var sv: HorizontalScrollView
@@ -170,74 +163,48 @@ class SelectDeviceActivity : Activity(), KeyEvent.Callback {
 	public override fun onCreate(savedInstanceState: Bundle?) {
 		super.onCreate(savedInstanceState)
 		sv = HorizontalScrollView(this)
-		val rl = RelativeLayout(this)
+		val al = AnotherAbsoluteLayout(this)
 		val tv = TextView(this)
 		tv.text = "Trackpad"
 		tv.gravity = Gravity.CENTER
 		tv.layoutParams = ViewGroup.LayoutParams(114, ViewGroup.LayoutParams.MATCH_PARENT)
 		//rl.addView(tv)
 		ks.forEachIndexed { i, param ->
-			Log.d("www", "[${i}] = ${param.contentToString()}, '${param[4].toChar()}'")
-			val rllp = RelativeLayout.LayoutParams(
-				TypedValue.applyDimension(
-					TypedValue.COMPLEX_UNIT_DIP,
-					12f * param[2],
-					resources.displayMetrics
-				).toInt(),
-				TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 12f * param[3], resources.displayMetrics).toInt()
-			)
-			if (param[0] != Int.MIN_VALUE) {
-				var id = param[0] + 114514
-				if (param[0] < 0) id += i
-				rllp.addRule(RelativeLayout.RIGHT_OF, id)
-			}
-			if (param[1] != Int.MIN_VALUE) {
-				var id = param[1] + 114514
-				if (param[1] < 0) id += i
-				rllp.addRule(RelativeLayout.BELOW, id)
-			}
-			if (param[4] == Int.MIN_VALUE) {
-				val v = TextView(this)
-				v.id = i + 114514
-				rl.addView(v, rllp)
-			} else {
-				val b = Button(this)
-				b.id = i + 114514
-				b.text = param[4].toChar().toString()
-				b.textSize = min(param[2], param[3]) * 4f
-				val keyCode = param[5]
-				if (keyCode == -15) {
-					b.setOnClickListener {
-						b.text = "Null"
-						hidd?.sendReport(host, 8, byteArrayOf(0, 0, 0, 0, 0, 0, 0, 0))
+			val b = Button(this)
+			b.text = param.label
+			b.textSize = min(param.w, param.h) * 4f
+			val keyCode = param.keyCode
+			if (keyCode == -15) {
+				b.setOnClickListener {
+					b.text = "Null"
+					hidd?.sendReport(host, 8, byteArrayOf(0, 0, 0, 0, 0, 0, 0, 0))
+					Handler(Looper.getMainLooper()).postDelayed({
+						b.text = "Alt+Tab"
+						hidd?.sendReport(host, 8, byteArrayOf(0x40, 0, 0x2b, 0, 0, 0, 0, 0))
 						Handler(Looper.getMainLooper()).postDelayed({
-							b.text = "Alt+Tab"
-							hidd?.sendReport(host, 8, byteArrayOf(0x40, 0, 0x2b, 0, 0, 0, 0, 0))
+							b.text = "Alt"
+							hidd?.sendReport(host, 8, byteArrayOf(0x40, 0, 0, 0, 0, 0, 0, 0))
 							Handler(Looper.getMainLooper()).postDelayed({
-								b.text = "Alt"
-								hidd?.sendReport(host, 8, byteArrayOf(0x40, 0, 0, 0, 0, 0, 0, 0))
+								b.text = "Alt+Shift"
+								hidd?.sendReport(host, 8, byteArrayOf(0x60, 0, 0, 0, 0, 0, 0, 0))
 								Handler(Looper.getMainLooper()).postDelayed({
-									b.text = "Alt+Shift"
-									hidd?.sendReport(host, 8, byteArrayOf(0x60, 0, 0, 0, 0, 0, 0, 0))
+									b.text = "Alt+Shift+Tab"
+									hidd?.sendReport(host, 8, byteArrayOf(0x60, 0, 0x2b, 0, 0, 0, 0, 0))
 									Handler(Looper.getMainLooper()).postDelayed({
-										b.text = "Alt+Shift+Tab"
-										hidd?.sendReport(host, 8, byteArrayOf(0x60, 0, 0x2b, 0, 0, 0, 0, 0))
+										b.text = "Alt+Shift"
+										hidd?.sendReport(host, 8, byteArrayOf(0x60, 0, 0, 0, 0, 0, 0, 0))
 										Handler(Looper.getMainLooper()).postDelayed({
-											b.text = "Alt+Shift"
-											hidd?.sendReport(host, 8, byteArrayOf(0x60, 0, 0, 0, 0, 0, 0, 0))
+											b.text = "Alt"
+											hidd?.sendReport(host, 8, byteArrayOf(0x40, 0, 0, 0, 0, 0, 0, 0))
 											Handler(Looper.getMainLooper()).postDelayed({
-												b.text = "Alt"
-												hidd?.sendReport(host, 8, byteArrayOf(0x40, 0, 0, 0, 0, 0, 0, 0))
+												b.text = "Alt+Enter"
+												hidd?.sendReport(host, 8, byteArrayOf(0x40, 0, 0x28, 0, 0, 0, 0, 0))
 												Handler(Looper.getMainLooper()).postDelayed({
-													b.text = "Alt+Enter"
-													hidd?.sendReport(host, 8, byteArrayOf(0x40, 0, 0x28, 0, 0, 0, 0, 0))
+													b.text = "Alt"
+													hidd?.sendReport(host, 8, byteArrayOf(0x40, 0, 0, 0, 0, 0, 0, 0))
 													Handler(Looper.getMainLooper()).postDelayed({
-														b.text = "Alt"
-														hidd?.sendReport(host, 8, byteArrayOf(0x40, 0, 0, 0, 0, 0, 0, 0))
-														Handler(Looper.getMainLooper()).postDelayed({
-															b.text = "Null"
-															hidd?.sendReport(host, 8, byteArrayOf(0, 0, 0, 0, 0, 0, 0, 0))
-														}, 50)
+														b.text = "Null"
+														hidd?.sendReport(host, 8, byteArrayOf(0, 0, 0, 0, 0, 0, 0, 0))
 													}, 50)
 												}, 50)
 											}, 50)
@@ -246,30 +213,35 @@ class SelectDeviceActivity : Activity(), KeyEvent.Callback {
 								}, 50)
 							}, 50)
 						}, 50)
-					}
-				} else {
-					b.setOnTouchListener { view, event ->
-						when (event.action) {
-							MotionEvent.ACTION_DOWN -> {
-								if (!state.any()) sv.requestDisallowInterceptTouchEvent(true)
-								state.down(keyCode)
-								hidd?.sendReport(host, 8, state.bytes)
-								MyCompatibility.viberate(this, 6)
-							}
-							MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-								view.performClick()
-								state.up(keyCode)
-								if (!state.any()) sv.requestDisallowInterceptTouchEvent(false)
-								hidd?.sendReport(host, 8, state.bytes)
-							}
-						}
-						true
-					}
+					}, 50)
 				}
-				rl.addView(b, rllp)
+			} else {
+				b.setOnTouchListener { view, event ->
+					when (event.action) {
+						MotionEvent.ACTION_DOWN -> {
+							if (!state.any()) sv.requestDisallowInterceptTouchEvent(true)
+							state.down(keyCode)
+							hidd?.sendReport(host, 8, state.bytes)
+							MyCompatibility.viberate(this, 6)
+						}
+						MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+							view.performClick()
+							state.up(keyCode)
+							if (!state.any()) sv.requestDisallowInterceptTouchEvent(false)
+							hidd?.sendReport(host, 8, state.bytes)
+						}
+					}
+					true
+				}
 			}
+			al.addView(b, AnotherAbsoluteLayout.LayoutParams(
+				TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 12f * param.x, resources.displayMetrics).toInt(),
+				TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 12f * param.y, resources.displayMetrics).toInt(),
+				TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 12f * param.w, resources.displayMetrics).toInt(),
+				TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 12f * param.h, resources.displayMetrics).toInt(),
+			))
 		}
-		sv.addView(rl, ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+		sv.addView(al, ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
 		setContentView(
 			sv,
 			ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)

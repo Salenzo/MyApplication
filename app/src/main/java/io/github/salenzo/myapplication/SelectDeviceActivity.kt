@@ -164,15 +164,17 @@ class SelectDeviceActivity : Activity(), KeyEvent.Callback {
 		super.onCreate(savedInstanceState)
 		sv = HorizontalScrollView(this)
 		val al = AnotherAbsoluteLayout(this)
-		val tv = TextView(this)
-		tv.text = "Trackpad"
-		tv.gravity = Gravity.CENTER
-		tv.layoutParams = ViewGroup.LayoutParams(114, ViewGroup.LayoutParams.MATCH_PARENT)
-		//rl.addView(tv)
-		ks.forEachIndexed { i, param ->
-			val b = Button(this)
-			b.text = param.label
-			b.textSize = min(param.w, param.h) * 4f
+		val tv = TextView(this).apply {
+			text = "Trackpad"
+			gravity = Gravity.CENTER
+			layoutParams = ViewGroup.LayoutParams(114, ViewGroup.LayoutParams.MATCH_PARENT)
+		}
+		//al.addView(tv)
+		ks.forEach { param ->
+			val b = Button(this).apply {
+				text = param.label
+				textSize = min(param.w, param.h) * 4f
+			}
 			val keyCode = param.keyCode
 			if (keyCode == -15) {
 				b.setOnClickListener {
@@ -242,13 +244,9 @@ class SelectDeviceActivity : Activity(), KeyEvent.Callback {
 			))
 		}
 		sv.addView(al, ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-		setContentView(
-			sv,
-			ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
-		)
+		setContentView(sv, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
 
 		BluetoothController.init(this)
-
 		BluetoothController.getSender { hidd, device ->
 			Log.wtf("weiufhas", "Callback called")
 			Handler(mainLooper).post {
@@ -259,7 +257,6 @@ class SelectDeviceActivity : Activity(), KeyEvent.Callback {
 				bluetoothStatus?.tooltipText = "App Connected via bluetooth"
 			}
 		}
-
 		BluetoothController.disconnectListener = {
 			Handler(mainLooper).post {
 				rKeyboardSender = null

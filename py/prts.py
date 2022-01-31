@@ -46,6 +46,60 @@ def average_nearby_numbers(array, threshold):
     retval.append(np.mean(cluster))
     return retval
 
+# 计算视角的理论值。
+# 该算法由GitHub @yuanyan3060通过逆向工程得到。
+# https://github.com/yuanyan3060/Arknights-Tile-Pos
+# 参数view指定一种摄像机角度，取值0~3，具体值在关卡对应的asset bundle中指定。
+# 参数side表示查询放置干员时的倾斜视角。
+def draw_tile_positions(img, level, view, side: bool = False):
+    ratio = img.shape[0] / img.shape[1]
+    xyzs = np.array([
+        [[0.0, -4.81, -7.76], [0.5975104570388794, -0.5, -0.882108688354492]],
+        [[0.0, -5.6, -8.92], [0.7989424467086792, -0.5, -0.86448486328125]],
+        [[0.0, -5.08, -8.04], [0.6461319923400879, -0.5, -0.877854309082031]],
+        [[0.0, -6.1, -9.78], [0.948279857635498, -0.5, -0.85141918182373]],
+    ])
+    xyz = xyzs[view][0]
+    if side: xyz += xyzs[view][1]
+    fromRatio = 9 / 16 # adapter
+    toRatio = 3 / 4
+    if ratio > fromRatio:
+        xyz += np.array([0, -1.4, -2.8]) * ((ratio - fromRatio) / (toRatio - fromRatio))
+    matrix = np.array([
+        [1, 0, 0, -xyz[0]],
+        [0, 1, 0, -xyz[1]],
+        [0, 0, 1, -xyz[2]],
+        [0, 0, 0, 1],
+    ])
+    if side:
+        matrix = np.dot(np.array([
+            [np.cos(np.deg2rad(10)), 0, np.sin(np.deg2rad(10)), 0],
+            [0, 1, 0, 0],
+            [-np.sin(np.deg2rad(10)), 0, np.cos(np.deg2rad(10)), 0],
+            [0, 0, 0, 1],
+        ]), matrix)
+    matrix = np.dot(np.array([
+        [1, 0, 0, 0],
+        [0, np.cos(np.deg2rad(30)), -np.sin(np.deg2rad(30)), 0],
+        [0, -np.sin(np.deg2rad(30)), -np.cos(np.deg2rad(30)), 0],
+        [0, 0, 0, 1],
+    ]), matrix)
+    print(matrix)
+    matrix = np.dot(np.array([
+        [ratio / np.tan(np.deg2rad(20)), 0, 0, 0],
+        [0, 1 / np.tan(np.deg2rad(20)), 0, 0],
+        [0, 0, -(1000 + 0.3) / (1000 - 0.3), -(1000 * 0.3 * 2) / (1000 - 0.3)],
+        [0, 0, -1, 0],
+    ]), matrix)
+    for y in range(level.shape[0]):
+        for x in range(level.shape[1]):
+            p_x, p_y, p_z, p_w = np.dot(matrix,
+                                        np.array([(x - (level.shape[1] - 1) / 2), ((level.shape[0] - 1) / 2) - y, (level[y][x] >> 7 & 1) * -0.4, 1]))
+            p_x = (1 + p_x / p_w) / 2
+            p_y = (1 + p_y / p_w) / 2
+            center = int(p_x * img.shape[1]), int((1 - p_y) * img.shape[0])
+            cv2.circle(img, center, 10, (114,255,41), -1)
+
 # 从通常截图img0与选中干员的子弹时间中的截图img1推断选中干员带来的视角变化。
 def bullet_time_transform(img0, img1):
     height, width = img0.shape[:2]
@@ -246,8 +300,9 @@ def main():
     img3 = cv2.imread("b4.png")
     with open("level_a001_06.json") as f:
         level = ptilopsis.level_map(json.load(f))
-    homography, bullet_time_homography = Perspective(level, img0, img1, img2, img3, 1)
-    draw_reseau(img0, homography, level.shape)
+    #homography, bullet_time_homography = Perspective(level, img0, img1, img2, img3, 1)
+    #draw_reseau(img0, homography, level.shape)
+    draw_tile_positions(img0, level, 1, False)
 
     cv2.imshow("", img0)
     cv2.waitKey()

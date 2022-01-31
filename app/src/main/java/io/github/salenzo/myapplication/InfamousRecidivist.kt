@@ -4,13 +4,19 @@ import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
 import android.accessibilityservice.GestureDescription.StrokeDescription
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.content.Context
+import android.content.Intent
 import android.graphics.*
 import android.graphics.drawable.ColorDrawable
 import android.hardware.display.DisplayManager
 import android.media.AudioManager
+import android.media.ImageReader
+import android.media.projection.MediaProjection
+import android.media.projection.MediaProjectionManager
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
@@ -54,6 +60,27 @@ class InfamousRecidivistService :	AccessibilityService() {
 		init {
 			System.loadLibrary("myapplication")
 	  }
+		var mediaProjectionToken: Intent? = null
+	}
+
+	lateinit var imageReader: ImageReader
+	var mediaProjection: MediaProjection? = null
+	fun renewMediaProjection() {
+		mediaProjectionToken?.let {
+			mediaProjection?.stop()
+			mediaProjection = (getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager)
+				.getMediaProjection(Activity.RESULT_OK, it.clone() as Intent)
+				.also {
+					it.createVirtualDisplay(
+						"screen-mirror",
+						resources.displayMetrics.widthPixels,
+						resources.displayMetrics.heightPixels,
+						resources.displayMetrics.densityDpi,
+						DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
+						imageReader.surface, null, null
+					)
+				}
+		}
 	}
 
 	var mLastKnownRoot: AccessibilityNodeInfo? = null
@@ -75,6 +102,14 @@ class InfamousRecidivistService :	AccessibilityService() {
 			getSystemService(NotificationManager::class.java).createNotificationChannel(NotificationChannel("２５５６５", "迫真传奇重犯正在运行", NotificationManager.IMPORTANCE_DEFAULT))
 			startForeground(25565, Notification.Builder(this, "２５５６５").build())
 		}
+		@SuppressLint("WrongConstant") // 我都不知道这报错怎么会出来的，其实没错。
+		imageReader = ImageReader.newInstance(
+			resources.displayMetrics.widthPixels,
+			resources.displayMetrics.heightPixels,
+			PixelFormat.RGBA_8888,
+			9
+		)
+		renewMediaProjection()
 
 		val wm = getSystemService(WINDOW_SERVICE) as WindowManager
 		mllTouch = LinearLayout(this).apply {
@@ -100,15 +135,7 @@ class InfamousRecidivistService :	AccessibilityService() {
 		// Create an overlay and display the action bar
 		wm.addView(LinearLayout(this).apply {
 			layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-			orientation = LinearLayout.VERTICAL
-			addView(Button(this@InfamousRecidivistService).apply {
-				text = "パワー"
-				layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-				setOnClickListener {
-					performGlobalAction(GLOBAL_ACTION_POWER_DIALOG)
-				}
-				visibility = ViewGroup.GONE
-			})
+			orientation = LinearLayout.HORIZONTAL
 			addView(Button(this@InfamousRecidivistService).apply {
 				text = "发出很大声音\n程度的能力"
 				textSize /= 4
@@ -151,10 +178,6 @@ class InfamousRecidivistService :	AccessibilityService() {
 				setOnClickListener {
 					val v = rootInActiveWindow
 					if (v != null) {
-						//val b = Bitmap.createBitmap(v.width, v.height, Bitmap.Config.ARGB_8888)
-						//val c = Canvas(b)
-						//v.draw(c)
-						//this.background = BitmapDrawable(this@InfamousRecidivistService.resources, b)
 						this.text = "${v.viewIdResourceName}\n${v.text}\n${v.hintText}\n${v.windowId}"
 						findFocus(AccessibilityNodeInfo.FOCUS_INPUT)?.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, Bundle().apply {
 							putString(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, "114514")
@@ -182,6 +205,16 @@ class InfamousRecidivistService :	AccessibilityService() {
 					} else {
 						mllTouch?.visibility = ViewGroup.VISIBLE
 						mtvOutput1?.visibility = ViewGroup.VISIBLE
+					}
+				}
+			})
+			addView(Button(this@InfamousRecidivistService).apply {
+				text = "获取截屏权限"
+				setOnClickListener {
+					if (mediaProjectionToken != null) {
+						renewMediaProjection()
+					} else {
+						GiveMeYourMediaProjectionTokenActivity.fire(this@InfamousRecidivistService)
 					}
 				}
 			})
@@ -402,18 +435,16 @@ class InfamousRecidivistService :	AccessibilityService() {
 	fun screenshot(): PyObject? {
 		return when (1) {
 			1 -> {
-				SelectDeviceActivity.mMediaProjection?.let {
-					SelectDeviceActivity.mImageReader.acquireLatestImage()?.let { img ->
-						val plane = img.planes[0]
-						val rowPadding = plane.rowStride - plane.pixelStride * img.width
-						val b = Bitmap.createBitmap(
-							img.width + rowPadding / plane.pixelStride, img.height,
-							Bitmap.Config.ARGB_8888
-						)
-						b.copyPixelsFromBuffer(plane.buffer)
-						img.close()
-						b
-					}
+				imageReader.acquireLatestImage()?.let { img ->
+					val plane = img.planes[0]
+					val rowPadding = plane.rowStride - plane.pixelStride * img.width
+					val b = Bitmap.createBitmap(
+						img.width + rowPadding / plane.pixelStride, img.height,
+						Bitmap.Config.ARGB_8888
+					)
+					b.copyPixelsFromBuffer(plane.buffer)
+					img.close()
+					b
 				}
 			}
 			2 -> {
@@ -532,6 +563,34 @@ class InfamousRecidivistService :	AccessibilityService() {
 			val m4 = SurfaceControl::class.java.getMethod("screenshot", Rect::class.java, Int::class.java, Int::class.java, Boolean::class.java, Int::class.java)
 			val o6 = m4.invoke(null, Rect(), 1920, 1080, false, Surface.ROTATION_0)
 			log("<${o6.javaClass.name}", 1)
+		}
+	}
+
+	class GiveMeYourMediaProjectionTokenActivity : Activity() {
+		override fun onStart() {
+			super.onStart()
+			startActivityForResult(
+				(getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager).createScreenCaptureIntent(),
+				1
+			)
+		}
+
+		override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+			super.onActivityResult(requestCode, resultCode, data)
+			Log.i(localClassName, "activity ${requestCode} result = ${resultCode}")
+			if (requestCode == 1) {
+				if (data != null) mediaProjectionToken = data
+				finish()
+			}
+		}
+
+		companion object {
+			fun fire(context: Context) {
+				if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) return
+				context.startActivity(Intent(context, this::class.java.declaringClass).apply {
+					addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
+				})
+			}
 		}
 	}
 }

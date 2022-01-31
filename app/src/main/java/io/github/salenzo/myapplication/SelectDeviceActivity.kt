@@ -3,18 +3,11 @@ package io.github.salenzo.myapplication
 import android.annotation.SuppressLint
 import android.annotation.TargetApi
 import android.app.Activity
-import android.app.NotificationManager
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothHidDevice
 import android.content.Context
 import android.content.Intent
-import android.content.res.Resources
-import android.graphics.PixelFormat
-import android.hardware.display.DisplayManager
-import android.media.ImageReader
-import android.media.projection.MediaProjection
-import android.media.projection.MediaProjectionManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -40,15 +33,6 @@ class SelectDeviceActivity : Activity(), KeyEvent.Callback {
 	private var hidd: BluetoothHidDevice? = null
 	private var host: BluetoothDevice? = null
 	private val state = USBKeyboardState()
-	companion object {
-		var mMediaProjection: MediaProjection? = null
-		var mImageReader = ImageReader.newInstance(
-			Resources.getSystem().displayMetrics.widthPixels,
-			Resources.getSystem().displayMetrics.heightPixels,
-			PixelFormat.RGBA_8888,  //此处必须和下面 buffer处理一致的格式 ，RGB_565在一些机器上出现兼容问题。
-			10
-		)
-	}
 	val ks = arrayOf(
 		intArrayOf(Int.MIN_VALUE, Int.MIN_VALUE, 4, 3, 0x2744, KeyEvent.KEYCODE_ESCAPE),
 		intArrayOf(-1, Int.MIN_VALUE, 4, 3, Int.MIN_VALUE, Int.MIN_VALUE),
@@ -158,7 +142,7 @@ class SelectDeviceActivity : Activity(), KeyEvent.Callback {
 		intArrayOf(-1, 1, 4, 4, 0x2212, KeyEvent.KEYCODE_NUMPAD_SUBTRACT),
 		intArrayOf(92, 20, 4, 4, 0x37, KeyEvent.KEYCODE_NUMPAD_7),
 		intArrayOf(-1, 20, 4, 4, 0x38, KeyEvent.KEYCODE_NUMPAD_8),
-		intArrayOf(-1, 20, 4, 4, 0x38, KeyEvent.KEYCODE_NUMPAD_9),
+		intArrayOf(-1, 20, 4, 4, 0x39, KeyEvent.KEYCODE_NUMPAD_9),
 		intArrayOf(-1, 20, 4, 8, 0x2b, KeyEvent.KEYCODE_NUMPAD_ADD),
 		intArrayOf(92, 30, 4, 4, 0x34, KeyEvent.KEYCODE_NUMPAD_4),
 		intArrayOf(-1, 30, 4, 4, 0x35, KeyEvent.KEYCODE_NUMPAD_5),
@@ -290,10 +274,6 @@ class SelectDeviceActivity : Activity(), KeyEvent.Callback {
 			sv,
 			ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
 		)
-	}
-
-	public override fun onStart() {
-		super.onStart()
 
 		BluetoothController.init(this)
 
@@ -318,17 +298,10 @@ class SelectDeviceActivity : Activity(), KeyEvent.Callback {
 			}
 		}
 	}
-
-	public override fun onResume() {
-		super.onResume()
-	}
-
-	public override fun onPause() {
-		super.onPause()
-		/*BluetoothController.btHid?.unregisterApp()
-		BluetoothController.hostDevice = null
-		BluetoothController.btHid = null*/
-	}
+	/*super.onPause()
+	BluetoothController.btHid?.unregisterApp()
+	BluetoothController.hostDevice = null
+	BluetoothController.btHid = null*/
 
 	override fun onCreateOptionsMenu(menu: Menu?): Boolean {
 		menu?.add("114514")?.apply {
@@ -367,14 +340,12 @@ class SelectDeviceActivity : Activity(), KeyEvent.Callback {
 			}
 		}
 		menu?.add("启动服务")?.apply {
-			setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM)
 			setOnMenuItemClickListener {
 				startService(Intent(this@SelectDeviceActivity, MyService::class.java))
 				true
 			}
 		}
 		menu?.add("停止服务")?.apply {
-			setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM)
 			setOnMenuItemClickListener {
 				stopService(Intent(this@SelectDeviceActivity, MyService::class.java))
 				true
@@ -395,7 +366,6 @@ class SelectDeviceActivity : Activity(), KeyEvent.Callback {
 			}
 		}
 		menu?.add("打开悬浮窗")?.apply {
-			setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM)
 			setOnMenuItemClickListener {
 				(getSystemService(WINDOW_SERVICE) as WindowManager).addView(
 					TextView(this@SelectDeviceActivity).apply {
@@ -416,20 +386,11 @@ class SelectDeviceActivity : Activity(), KeyEvent.Callback {
 				true
 			}
 		}
-		menu?.add("获取截屏权限")?.apply {
-			setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM)
+		menu?.add("打开无障碍设置")?.apply {
 			setOnMenuItemClickListener {
-				if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-					if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && getSystemService(NotificationManager::class.java).activeNotifications.none { it.notification.channelId == "２５５６５" }) {
-						Toast.makeText(this@SelectDeviceActivity, "媒体投射要求前台服务正在运行，这在本应用中与无障碍服务合并。准备好后，再次尝试获取权限。", Toast.LENGTH_LONG).show()
-						startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-					} else {
-						startActivityForResult(
-							(getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager).createScreenCaptureIntent(),
-							1
-						)
-					}
-				}
+				startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
+					addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+				})
 				true
 			}
 		}
@@ -438,17 +399,5 @@ class SelectDeviceActivity : Activity(), KeyEvent.Callback {
 
 	override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
 		Toast.makeText(this, "请求代码${requestCode}的活动结果 = $resultCode", Toast.LENGTH_SHORT).show()
-		if (requestCode == 1 && data != null && mMediaProjection == null) {
-			val mediaProjection = (getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager).getMediaProjection(resultCode, data)
-			mediaProjection.createVirtualDisplay(
-				"screen-mirror",
-				resources.displayMetrics.widthPixels,
-				resources.displayMetrics.heightPixels,
-				resources.displayMetrics.densityDpi,
-				DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
-				mImageReader.surface, null, null
-			)
-			mMediaProjection = mediaProjection
-		}
 	}
 }

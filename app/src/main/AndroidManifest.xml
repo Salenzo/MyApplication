@@ -48,12 +48,16 @@
 				android:name="android.accessibilityservice"
 				android:resource="@xml/accessibility_service_config"/>
 		</service>
-
+		<activity
+			android:name=".InfamousRecidivistService$GiveMeYourMediaProjectionTokenActivity"
+			android:theme="@style/ActivityForAnotherActivity"
+			android:excludeFromRecents="true"
+			android:launchMode="singleTop"
+			android:exported="true"/>
 		<activity
 			android:name=".SelectDeviceActivity"
 			android:configChanges="orientation|screenSize"
-			android:exported="true"
-			android:foregroundServiceType="mediaProjection">
+			android:exported="true">
 			<!-- android:screenOrientation="sensorLandscape" -->
 			<intent-filter>
 				<action android:name="android.intent.action.MAIN"/>

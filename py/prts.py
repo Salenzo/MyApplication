@@ -52,53 +52,70 @@ def average_nearby_numbers(array, threshold):
 # 参数view指定一种摄像机角度，取值0~3，具体值在关卡对应的asset bundle中指定。
 # 参数side表示查询放置干员时的倾斜视角。
 def draw_tile_positions(img, level, view, side: bool = False):
-    ratio = img.shape[0] / img.shape[1]
-    xyzs = np.array([
+    aspect_ratio = img.shape[0] / img.shape[1]
+    # 从可能的摄像机位置中选择。
+    xyzs = np.float32([
         [[0.0, -4.81, -7.76], [0.5975104570388794, -0.5, -0.882108688354492]],
         [[0.0, -5.6, -8.92], [0.7989424467086792, -0.5, -0.86448486328125]],
         [[0.0, -5.08, -8.04], [0.6461319923400879, -0.5, -0.877854309082031]],
         [[0.0, -6.1, -9.78], [0.948279857635498, -0.5, -0.85141918182373]],
     ])
-    xyz = xyzs[view][0]
-    if side: xyz += xyzs[view][1]
-    fromRatio = 9 / 16 # adapter
-    toRatio = 3 / 4
-    if ratio > fromRatio:
-        xyz += np.array([0, -1.4, -2.8]) * ((ratio - fromRatio) / (toRatio - fromRatio))
-    matrix = np.array([
-        [1, 0, 0, -xyz[0]],
-        [0, 1, 0, -xyz[1]],
-        [0, 0, 1, -xyz[2]],
+    matrix = xyzs[view][0]
+    if side: matrix += xyzs[view][1]
+    # 适应纵横比。
+    # 屏幕比16:9更窄的话，摄像机也会移到后方更高处。
+    # 数值详见CameraController。有很多个，但数值都一样。
+    from_ratio = 9 / 16 # _fromResolution
+    to_ratio = 3 / 4 # _toResolution
+    if aspect_ratio > from_ratio:
+        matrix += np.float32([0, -1.4, -2.8]) * ((aspect_ratio - from_ratio) / (to_ratio - from_ratio))
+    # 构造透视矩阵。
+    matrix = np.float32([
+        [1, 0, 0, -matrix[0]],
+        [0, 1, 0, -matrix[1]],
+        [0, 0, 1, -matrix[2]],
         [0, 0, 0, 1],
     ])
     if side:
-        matrix = np.dot(np.array([
+        matrix = np.dot(np.float32([
             [np.cos(np.deg2rad(10)), 0, np.sin(np.deg2rad(10)), 0],
             [0, 1, 0, 0],
             [-np.sin(np.deg2rad(10)), 0, np.cos(np.deg2rad(10)), 0],
             [0, 0, 0, 1],
         ]), matrix)
-    matrix = np.dot(np.array([
+    matrix = np.dot(np.float32([
         [1, 0, 0, 0],
         [0, np.cos(np.deg2rad(30)), -np.sin(np.deg2rad(30)), 0],
         [0, -np.sin(np.deg2rad(30)), -np.cos(np.deg2rad(30)), 0],
         [0, 0, 0, 1],
     ]), matrix)
-    print(matrix)
-    matrix = np.dot(np.array([
-        [ratio / np.tan(np.deg2rad(20)), 0, 0, 0],
+    matrix = np.dot(np.float32([
+        [aspect_ratio / np.tan(np.deg2rad(20)), 0, 0, 0],
         [0, 1 / np.tan(np.deg2rad(20)), 0, 0],
         [0, 0, -(1000 + 0.3) / (1000 - 0.3), -(1000 * 0.3 * 2) / (1000 - 0.3)],
         [0, 0, -1, 0],
     ]), matrix)
-    for y in range(level.shape[0]):
-        for x in range(level.shape[1]):
-            p_x, p_y, p_z, p_w = np.dot(matrix,
-                                        np.array([(x - (level.shape[1] - 1) / 2), ((level.shape[0] - 1) / 2) - y, (level[y][x] >> 7 & 1) * -0.4, 1]))
-            p_x = (1 + p_x / p_w) / 2
-            p_y = (1 + p_y / p_w) / 2
-            center = int(p_x * img.shape[1]), int((1 - p_y) * img.shape[0])
-            cv2.circle(img, center, 10, (114,255,41), -1)
+    # 透视矩阵初等列变换，移动输入坐标原点到地图中心，并设置高台高度。
+    matrix = np.dot(matrix, np.float32([
+        [1, 0, 0, -level.shape[1] / 2],
+        [0, 1, 0, -level.shape[0] / 2],
+        [0, 0, -0.4, 0],
+        [0, 0, 0, 1],
+    ]))
+    # 透视矩阵初等行变换，将输出坐标从OpenGL坐标系变换到OpenCV坐标系。
+    matrix = np.dot(np.float32([
+        [img.shape[1], 0, 0, img.shape[1]],
+        [0, -img.shape[0], 0, img.shape[0]],
+        [0, 0, 1, 0],
+        [0, 0, 0, 2],
+    ]), matrix)
+    for row in range(level.shape[0] + 1):
+        for col in range(level.shape[1] + 1):
+            center = cv2.perspectiveTransform(
+                np.float32([[[col, row, 1]]]),
+                matrix
+            )[0, 0, :2]
+            cv2.circle(img, (round(center[0]), round(center[1])), 10, (row * 20, 255, col * 15), -1)
 
 # 从通常截图img0与选中干员的子弹时间中的截图img1推断选中干员带来的视角变化。
 def bullet_time_transform(img0, img1):
@@ -156,22 +173,20 @@ def perspective(vanishing_point_y, template, img1):
     height, width = img1.shape[:2]
     # 基于可放置位不会出现在偏僻地的假设，此处的透视反变换将丢弃左上和右上的像素。
     inset = width / 2 * height / (height - vanishing_point_y)
-    homography, _ = cv2.findHomography(
-        np.array([[0, 0], [0, height], [width, height], [width, 0]]),
-        np.array([[inset, 0], [0, height], [width, height], [width - inset, 0]]),
-        0
+    homography = cv2.getPerspectiveTransform(
+        np.float32([[0, 0], [0, height], [width, height], [width, 0]]),
+        np.float32([[inset, 0], [0, height], [width, height], [width - inset, 0]])
     )
     img0 = cv2.warpPerspective(img1, homography, (width, height), flags=cv2.WARP_INVERSE_MAP)
     # 获取矩形包围框，按包围框计算透视矩阵。
     x, y, w, h = cv2.boundingRect(template)
     x0, y0, w0, h0 = cv2.boundingRect(img0)
-    homography, _ = cv2.findHomography(
-        np.array([[x, y], [x, y + h], [x + w, y + h], [x + w, y]]),
+    homography = cv2.getPerspectiveTransform(
+        np.float32([[x, y], [x, y + h], [x + w, y + h], [x + w, y]]),
         cv2.perspectiveTransform(
-            np.float32([[[x0, y0]], [[x0, y0 + h0]], [[x0 + w0, y0 + h0]], [[x0 + w0, y0]]]),
+            np.float32([[[x0, y0], [x0, y0 + h0], [x0 + w0, y0 + h0], [x0 + w0, y0]]]),
             homography
-        ),
-        0
+        )[0]
     )
     return homography, np.mean(cv2.absdiff(cv2.resize(template[y:y + h, x:x + w], (w0, h0), interpolation=cv2.INTER_NEAREST), img0[y0:y0 + h0, x0:x0 + w0])) / 255
 
@@ -208,7 +223,7 @@ def Perspective(level, img0, img1, img2, img3, operator_position):
 # 在图上绘制算得的网格线，用于调试。
 def draw_reseau(img, homography, shape):
     points = np.int32(cv2.perspectiveTransform(np.float32(
-        [[[col, row] for col in range(shape[1] + 1)] for row in range(shape[0] + 1)]
+        np.dstack(np.flipud(np.mgrid[:shape[0] + 1, :shape[1] + 1]))
     ), homography))
     for row in range(shape[0] + 1):
         cv2.line(img, tuple(points[row, 0]), tuple(points[row, shape[1]]), [row * 20, 192, 192], 5)
@@ -247,10 +262,10 @@ def ocr_natural_number(img, font):
     phash = cv2.img_hash.AverageHash_create()
     # 以字形连续原理切开每个数字。
     value = 0
-    for x0, x1 in (np.where(np.diff(np.concatenate(([False], np.bitwise_or.reduce(img != 0, axis=0), [False]))))[0]).reshape(-1, 2):
+    for x0, x1 in np.where(np.diff(np.concatenate(([False], np.bitwise_or.reduce(img != 0, axis=0), [False]))))[0].reshape(-1, 2):
         # 裁切到最小包围框，然后用感知散列识别数字。
         _, y0, _, h = cv2.boundingRect(img[:, x0:x1])
-        h = phash.compute(img[y0:y0 + h, x0:x1]).flatten()
+        h = np.ravel(phash.compute(img[y0:y0 + h, x0:x1]))
         value *= 10
         value += np.argmin([phash.compare(g, h) for g in font])
     return value
@@ -300,9 +315,9 @@ def main():
     img3 = cv2.imread("b4.png")
     with open("level_a001_06.json") as f:
         level = ptilopsis.level_map(json.load(f))
-    #homography, bullet_time_homography = Perspective(level, img0, img1, img2, img3, 1)
-    #draw_reseau(img0, homography, level.shape)
-    draw_tile_positions(img0, level, 1, False)
+    homography, bullet_time_homography = Perspective(level, img0, img1, img2, img3, 1)
+    draw_reseau(img0, homography, level.shape)
+    draw_tile_positions(img1, level, 1, True)
 
     cv2.imshow("", img0)
     cv2.waitKey()

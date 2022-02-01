@@ -59,8 +59,8 @@ def perspective_on_z(perspective, z):
 # 该算法由GitHub @yuanyan3060通过逆向工程得到。
 # https://github.com/yuanyan3060/Arknights-Tile-Pos
 # 参数view指定一种摄像机角度，取值0~3，具体值在关卡对应的asset bundle中指定。
-# 参数tilted表示查询放置干员时的倾斜视角。
-def camera_perspective(img, level, view: int, tilted: bool = False):
+# 参数bullet_time表示查询放置干员时的倾斜视角。
+def camera_perspective(img, level, view: int, bullet_time: bool = False):
     aspect_ratio = img.shape[0] / img.shape[1]
     # 从可能的摄像机位置中选择。
     matrix = np.cumsum([
@@ -68,7 +68,7 @@ def camera_perspective(img, level, view: int, tilted: bool = False):
         [[0.0, -5.6, -8.92], [0.7989424467086792, -0.5, -0.86448486328125]],
         [[0.0, -5.08, -8.04], [0.6461319923400879, -0.5, -0.877854309082031]],
         [[0.0, -6.1, -9.78], [0.948279857635498, -0.5, -0.85141918182373]],
-    ], axis=1, dtype=np.float32)[view, int(tilted)]
+    ], axis=1, dtype=np.float32)[view, int(bullet_time)]
     # 适应纵横比。
     # 屏幕比16:9更窄的话，摄像机也会移到后方更高处。
     # 数值详见CameraController。有很多个，但数值都一样。
@@ -82,7 +82,7 @@ def camera_perspective(img, level, view: int, tilted: bool = False):
         [0, 0, 1, -matrix[2]],
         [0, 0, 0, 1],
     ])
-    if tilted:
+    if bullet_time:
         matrix = np.float32([
             [np.cos(np.deg2rad(10)), 0, np.sin(np.deg2rad(10)), 0],
             [0, 1, 0, 0],
@@ -118,7 +118,7 @@ def camera_perspective(img, level, view: int, tilted: bool = False):
     return matrix
 
 # 从通常截图img0与选中干员的子弹时间中的截图img1推断选中干员带来的视角变化。
-def bullet_time_transform(img0, img1):
+def estimate_bullet_time_transform(img0, img1):
     height, width = img0.shape[:2]
     x0, y0 = height * 2 // 3, height // 12
     x1, y1 = width - height // 3, height * 4 // 5
@@ -148,7 +148,7 @@ def buildable_mask(homography, img2, img3):
     return cv2.inRange(cv2.cvtColor(cv2.absdiff(img2, img3), cv2.COLOR_BGR2GRAY), 1, 255)
 
 # 根据任意地块的二值图像推断通常视角的透视消失点纵坐标。
-def vanishing_point_y(img1):
+def estimate_vanishing_point_y(img1):
     height, width = img1.shape[:2]
     # 检测边缘，寻找线段的标准做法。
     img1 = cv2.Canny(img1, 50, 200, None, 3)
@@ -167,36 +167,24 @@ def vanishing_point_y(img1):
     return np.median(vanishing_point_ys)
     # 实际上，空间地面上间隔相等的水平线，透视后仍为水平线，其到消失点距离的倒数之差也相等。
 
-# 按消失点解除图像的透视，再用矩形包围框确定缩放和平移量，返回从地图数据到通常视角的透视矩阵和归一化误差。误差用于确定高台遮挡修正值。
-# template是二值地图数据，img1是二值可放置位视图。
-def perspective(vanishing_point_y, template, img1):
-    height, width = img1.shape[:2]
+# 综合练习：估计从地图坐标到通常视角的透视矩阵。
+# level：level_map函数返回的地图图像。
+# img0：通常视角截图；img1：子弹时间截图；img2、img3：选中干员且暂停时的截图。
+# operator_position：位域，选中干员的可部署位置，1 = 可部署在近战位，2 = 可部署在远程位。
+def estimate_perspective(level, img0, img1, img2, img3, operator_position):
+    height, width = img0.shape[:2]
+    bullet_time_homography = estimate_bullet_time_transform(img0, img1)
+    # mask：二值可放置位视图。
+    mask = buildable_mask(bullet_time_homography, img2, img3)
+    vanishing_point_y = estimate_vanishing_point_y(mask)
+    # 按消失点解除图像的透视，使地块对齐坐标轴，以便借助矩形包围框。
     # 基于可放置位不会出现在偏僻地的假设，此处的透视反变换将丢弃左上和右上的像素。
     inset = width / 2 * height / (height - vanishing_point_y)
-    homography = cv2.getPerspectiveTransform(
+    inset_homography = cv2.getPerspectiveTransform(
         np.float32([[0, 0], [0, height], [width, height], [width, 0]]),
         np.float32([[inset, 0], [0, height], [width, height], [width - inset, 0]])
     )
-    img0 = cv2.warpPerspective(img1, homography, (width, height), flags=cv2.WARP_INVERSE_MAP)
-    # 获取矩形包围框，按包围框计算透视矩阵。
-    x, y, w, h = cv2.boundingRect(template)
-    x0, y0, w0, h0 = cv2.boundingRect(img0)
-    homography = cv2.getPerspectiveTransform(
-        np.float32([[x, y], [x, y + h], [x + w, y + h], [x + w, y]]),
-        cv2.perspectiveTransform(
-            np.float32([[[x0, y0], [x0, y0 + h0], [x0 + w0, y0 + h0], [x0 + w0, y0]]]),
-            homography
-        )[0]
-    )
-    return homography, np.mean(cv2.absdiff(cv2.resize(template[y:y + h, x:x + w], (w0, h0), interpolation=cv2.INTER_NEAREST), img0[y0:y0 + h0, x0:x0 + w0])) / 255
-
-# 综合练习：估计透视矩阵。
-# level：level_map函数返回的地图数据。
-# img0：通常视角截图；img1：子弹时间截图；img2、img3：选中干员且暂停时的截图。
-# operator_position：位域，选中干员的可部署位置，1 = 可部署在近战位，2 = 可部署在远程位。
-def Perspective(level, img0, img1, img2, img3, operator_position):
-    bullet_time_homography = bullet_time_transform(img0, img1)
-    mask = buildable_mask(bullet_time_homography, img2, img3)
+    img0 = cv2.warpPerspective(mask, inset_homography, (width, height), flags=cv2.WARP_INVERSE_MAP)
     # 高台可能遮挡可部署位，因此寻找不可放置近战单位的高台地形并上移一定程度。
     # 假设遮挡物处在地面上，从0到17/18格枚举遮挡物格中占比，计算每种情况的误差。
     # template是每格图块占用18行1列的矩阵，求出的透视矩阵y分量还需变换。
@@ -204,21 +192,31 @@ def Perspective(level, img0, img1, img2, img3, operator_position):
     # TODO 左右对称修正
     template1 = np.repeat(cv2.compare(cv2.bitwise_and(level, 32), 0, cv2.CMP_NE), 18, axis=0)
     template2 = np.repeat(cv2.compare(cv2.bitwise_and(level, 128 | 32), 128, cv2.CMP_EQ), 18, axis=0)
-    homography, _ = min([
-        perspective(
-            vanishing_point_y(mask),
-            cv2.subtract(
-                template1,
-                np.vstack((
-                    template2[i:],
-                    np.zeros((i, template2.shape[1]), dtype=np.uint8)
-                ))
-            ),
-            mask
-        ) for i in range(18)
-    ], key=lambda x: x[1])
-    homography[:, 1] *= 18
-    return homography, bullet_time_homography
+    best_homography, minimum_error = None, np.inf
+    for i in range(18):
+        # template是二值地图数据。
+        template = cv2.subtract(
+            template1,
+            np.r_[template2[i:], np.zeros((i, template2.shape[1]), dtype=np.uint8)]
+        )
+        # 获取矩形包围框，按包围框计算透视矩阵。
+        x, y, w, h = cv2.boundingRect(template)
+        x0, y0, w0, h0 = cv2.boundingRect(img0)
+        # 用矩形包围框确定缩放和平移量。
+        homography = cv2.getPerspectiveTransform(
+            np.float32([x, template.shape[0] - y])
+                + np.float32([[0, 0], [0, -h], [w, -h], [w, 0]]),
+            cv2.perspectiveTransform(
+                np.float32([[[x0, y0], [x0, y0 + h0], [x0 + w0, y0 + h0], [x0 + w0, y0]]]),
+                inset_homography
+            )[0]
+        )
+        # 计算归一化误差，以找出最佳高台遮挡修正量。
+        error = np.mean(cv2.absdiff(cv2.resize(template[y:y + h, x:x + w], (w0, h0), interpolation=cv2.INTER_NEAREST), img0[y0:y0 + h0, x0:x0 + w0])) / 255
+        if error < minimum_error:
+            best_homography, minimum_error = homography, error
+    best_homography[:, 1] *= 18
+    return best_homography, bullet_time_homography
 
 # 在图上绘制算得的网格线，用于调试。
 def draw_reseau(img, homography, shape):
@@ -320,11 +318,11 @@ def main():
     img3 = cv2.imread("b4.png")
     with open("level_a001_06.json") as f:
         level = ptilopsis.level_map(json.load(f))
-    homography, bullet_time_homography = Perspective(level, img0, img1, img2, img3, 1)
+    homography, bullet_time_homography = estimate_perspective(level, img0, img1, img2, img3, 1)
     draw_reseau(img0, homography, level.shape)
     draw_reseau(img1, camera_perspective(img1, level, 1, True), level.shape)
 
-    cv2.imshow("", img1)
+    cv2.imshow("", img0)
     cv2.waitKey()
 
 if __name__ == "__main__":

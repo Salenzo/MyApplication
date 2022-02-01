@@ -46,29 +46,35 @@ def average_nearby_numbers(array, threshold):
     retval.append(np.mean(cluster))
     return retval
 
+# 通过指定z坐标，降三维透视矩阵到二维。
+def perspective_on_z(perspective, z):
+    if perspective.shape != (4, 4):
+        raise ValueError("在非三维透视矩阵上调用perspective_on_z")
+    perspective = np.delete(perspective, 2, axis=0)
+    perspective[:, -1] += perspective[:, 2] * z
+    perspective = np.delete(perspective, 2, axis=1)
+    return perspective
+
 # 计算视角的理论值。
 # 该算法由GitHub @yuanyan3060通过逆向工程得到。
 # https://github.com/yuanyan3060/Arknights-Tile-Pos
 # 参数view指定一种摄像机角度，取值0~3，具体值在关卡对应的asset bundle中指定。
-# 参数side表示查询放置干员时的倾斜视角。
-def draw_tile_positions(img, level, view, side: bool = False):
+# 参数tilted表示查询放置干员时的倾斜视角。
+def camera_perspective(img, level, view: int, tilted: bool = False):
     aspect_ratio = img.shape[0] / img.shape[1]
     # 从可能的摄像机位置中选择。
-    xyzs = np.float32([
+    matrix = np.cumsum([
         [[0.0, -4.81, -7.76], [0.5975104570388794, -0.5, -0.882108688354492]],
         [[0.0, -5.6, -8.92], [0.7989424467086792, -0.5, -0.86448486328125]],
         [[0.0, -5.08, -8.04], [0.6461319923400879, -0.5, -0.877854309082031]],
         [[0.0, -6.1, -9.78], [0.948279857635498, -0.5, -0.85141918182373]],
-    ])
-    matrix = xyzs[view][0]
-    if side: matrix += xyzs[view][1]
+    ], axis=1, dtype=np.float32)[view, int(tilted)]
     # 适应纵横比。
     # 屏幕比16:9更窄的话，摄像机也会移到后方更高处。
     # 数值详见CameraController。有很多个，但数值都一样。
     from_ratio = 9 / 16 # _fromResolution
     to_ratio = 3 / 4 # _toResolution
-    if aspect_ratio > from_ratio:
-        matrix += np.float32([0, -1.4, -2.8]) * ((aspect_ratio - from_ratio) / (to_ratio - from_ratio))
+    matrix += np.float32([0, -1.4, -2.8]) * (max(0, aspect_ratio - from_ratio) / (to_ratio - from_ratio))
     # 构造透视矩阵。
     matrix = np.float32([
         [1, 0, 0, -matrix[0]],
@@ -76,46 +82,40 @@ def draw_tile_positions(img, level, view, side: bool = False):
         [0, 0, 1, -matrix[2]],
         [0, 0, 0, 1],
     ])
-    if side:
-        matrix = np.dot(np.float32([
+    if tilted:
+        matrix = np.float32([
             [np.cos(np.deg2rad(10)), 0, np.sin(np.deg2rad(10)), 0],
             [0, 1, 0, 0],
             [-np.sin(np.deg2rad(10)), 0, np.cos(np.deg2rad(10)), 0],
             [0, 0, 0, 1],
-        ]), matrix)
-    matrix = np.dot(np.float32([
+        ]) @ matrix
+    matrix = np.float32([
         [1, 0, 0, 0],
         [0, np.cos(np.deg2rad(30)), -np.sin(np.deg2rad(30)), 0],
         [0, -np.sin(np.deg2rad(30)), -np.cos(np.deg2rad(30)), 0],
         [0, 0, 0, 1],
-    ]), matrix)
-    matrix = np.dot(np.float32([
+    ]) @ matrix
+    matrix = np.float32([
         [aspect_ratio / np.tan(np.deg2rad(20)), 0, 0, 0],
         [0, 1 / np.tan(np.deg2rad(20)), 0, 0],
         [0, 0, -(1000 + 0.3) / (1000 - 0.3), -(1000 * 0.3 * 2) / (1000 - 0.3)],
         [0, 0, -1, 0],
-    ]), matrix)
+    ]) @ matrix
     # 透视矩阵初等列变换，移动输入坐标原点到地图中心，并设置高台高度。
-    matrix = np.dot(matrix, np.float32([
+    matrix = matrix @ np.float32([
         [1, 0, 0, -level.shape[1] / 2],
         [0, 1, 0, -level.shape[0] / 2],
         [0, 0, -0.4, 0],
         [0, 0, 0, 1],
-    ]))
+    ])
     # 透视矩阵初等行变换，将输出坐标从OpenGL坐标系变换到OpenCV坐标系。
-    matrix = np.dot(np.float32([
+    matrix = np.float32([
         [img.shape[1], 0, 0, img.shape[1]],
         [0, -img.shape[0], 0, img.shape[0]],
         [0, 0, 1, 0],
         [0, 0, 0, 2],
-    ]), matrix)
-    for row in range(level.shape[0] + 1):
-        for col in range(level.shape[1] + 1):
-            center = cv2.perspectiveTransform(
-                np.float32([[[col, row, 1]]]),
-                matrix
-            )[0, 0, :2]
-            cv2.circle(img, (round(center[0]), round(center[1])), 10, (row * 20, 255, col * 15), -1)
+    ]) @ matrix
+    return matrix
 
 # 从通常截图img0与选中干员的子弹时间中的截图img1推断选中干员带来的视角变化。
 def bullet_time_transform(img0, img1):
@@ -222,16 +222,21 @@ def Perspective(level, img0, img1, img2, img3, operator_position):
 
 # 在图上绘制算得的网格线，用于调试。
 def draw_reseau(img, homography, shape):
+    # 如果输入的透视矩阵是三维的，先降维。
+    if homography.shape[1] == 4:
+        homography = perspective_on_z(homography, 0)
+    # 一并生成格点，批量送入cv2.perspectiveTransform计算透视结果。
     points = np.int32(cv2.perspectiveTransform(np.float32(
         np.dstack(np.flipud(np.mgrid[:shape[0] + 1, :shape[1] + 1]))
     ), homography))
+    # 绘制网格线。
     for row in range(shape[0] + 1):
         cv2.line(img, tuple(points[row, 0]), tuple(points[row, shape[1]]), [row * 20, 192, 192], 5)
     for col in range(shape[1] + 1):
         cv2.line(img, tuple(points[0, col]), tuple(points[shape[0], col]), [192, 192, col * 15], 5)
-    for row in range(shape[0] + 1):
-        for col in range(shape[1] + 1):
-            cv2.circle(img, tuple(points[row, col]), 10, [row * 20, 255, col * 15], -1)
+    # 绘制网格点。
+    for row, col in np.ndindex(shape[0] + 1, shape[1] + 1):
+        cv2.circle(img, tuple(points[row, col]), 10, (row * 20, 255, col * 15), -1)
 
 # 字形的均值散列值表。
 # 我可以从十六进制散列中直接读出原图，你也可以。
@@ -317,9 +322,9 @@ def main():
         level = ptilopsis.level_map(json.load(f))
     homography, bullet_time_homography = Perspective(level, img0, img1, img2, img3, 1)
     draw_reseau(img0, homography, level.shape)
-    draw_tile_positions(img1, level, 1, True)
+    draw_reseau(img1, camera_perspective(img1, level, 1, True), level.shape)
 
-    cv2.imshow("", img0)
+    cv2.imshow("", img1)
     cv2.waitKey()
 
 if __name__ == "__main__":

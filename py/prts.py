@@ -339,6 +339,22 @@ OCR_BENDER = np.uint8([
     # 等用到再说吧。
 ])
 
+def visualize_phash(cls, h):
+    """可视化感知散列到微型二值图像。
+    
+    cls是cv2.img_hash中的类，如cv2.img_hash.averageHash。
+    散列的计算方法参照OpenCV C++代码，本函数执行相反的操作。
+    https://github.com/opencv/opencv_contrib/tree/4.x/modules/img_hash/src
+    """
+    if type(h) is str: h = bytes.fromhex(h)
+    if type(h) is bytes: h = np.uint8(list(h))
+    if cls is cv2.img_hash.averageHash:
+        return np.unpackbits(h, bitorder="little").reshape(8, 8) * 255
+    elif cls is cv2.img_hash.blockMeanHash:
+        # OpenCV实现的块均值散列省略了文档引用的论文中算法的加密，且所谓块“中位数”实为均值，使得它除了大一点以外，和均值散列没什么两样。
+        return np.unpackbits(h, bitorder="little").reshape(16, 16) * 255
+    raise ValueError("我没用过这种感知散列")
+
 def ocr_natural_number(img, font):
     """识别背景较暗、前景白色的自然数。"""
     if len(img.shape) > 2:
@@ -408,6 +424,7 @@ def main():
     draw_reseau(img0, homography, level.shape)
 
     cv2.imshow("", img0)
+    cv2.imshow("", visualize_phash(cv2.img_hash.blockMeanHash, "10087c3efffffe7f00008001c003fe3ffc3f003c003e9c07fe03fe03e7ffc2ff"))
     cv2.waitKey()
 
 if __name__ == "__main__":

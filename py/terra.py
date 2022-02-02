@@ -57,8 +57,8 @@ class PathFinder:
         if not allow_diagonal:
             t = [t[0], t[2], t[4], t[6]]
         return [x for x in t if x[1] and self.passable_mask[x[1]][motion_mode]]
-    # path搜索两点间最短路径。
     def path(self, FROM, to, motion_mode, allow_diagonal, point_data):
+        """path搜索两点间最短路径。"""
         if FROM["row"] < 0 or FROM["col"] < 0 or FROM["row"] >= self.height or FROM["col"] >= self.width or to["row"] < 0 or to["col"] < 0 or to["row"] >= self.height or to["col"] >= self.width:
             return None
         path = None
@@ -98,8 +98,8 @@ class PathFinder:
         if to.get("type") in [1, 3, 5]:
             path[-1].update(point_data)
         return path
-    # route按路线检查点分段调用path来搜索路径。
     def route(self, start, checkpoints, end, motion_mode, allow_diagonal):
+        """route按路线检查点分段调用path来搜索路径。"""
         u = []
         for point in [start, *[{"row": x["position"]["row"], "col": x["position"]["col"], "type": x.get("type"), "time": x.get("time"), "reachOffset": x.get("reachOffset")} for x in checkpoints], end]:
             if point.get("type") in [1, 3, 5, 7]:
@@ -125,9 +125,11 @@ class PathFinder:
                 motion_mode
             )[bool(i):])
         return ret
-    # 合并路径中可以直走的部分。
-    # 可以直走指的是线段端点指定的矩形内全是可通行地块。
     def clean_up_path(self, path, motion_mode):
+        """合并路径中可以直走的部分。
+
+        可以直走指的是线段端点指定的矩形内全是可通行地块。
+        """
         if len(path) <= 2: return path
         ret = [path[0], path[0]]
         for point in path[1:]:
@@ -140,9 +142,11 @@ class PathFinder:
                 ret.append(point)
         return ret
 
-# 打印一幅二值图像。
-# 真正的计算机图形学家不需要imshow，都是用print看图像的。
 def imprint(img):
+    """打印一幅二值图像。
+
+    真正的计算机图形学家不需要imshow，都是用print看图像的。
+    """
     for row in img:
         for tile in row:
             print("[]" if tile else "--", end="")

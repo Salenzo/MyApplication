@@ -60,16 +60,20 @@ CHARACTERS.update(read_json("excel/char_patch_table.json")["patchChars"])
 UNIEQUIPS = read_json("excel/uniequip_table.json")
 BATTLE_EQUIPS = read_json("excel/battle_equip_table.json")
 
-# 按名称和职业查找角色。
-# 返回角色内部ID。
 def find_character_by_name_and_profession(name, profession):
+    """按名称和职业查找角色。
+
+    返回角色内部ID。
+    """
     for key, character in CHARACTERS.items():
         if character["name"] == name and character["profession"] == profession:
             return key
 
-# 属性关键帧插值。
-# https://prts.wiki/index.php?title=Widget:PropertyCalc&action=edit
 def interpolate_dicts(level, keyframes):
+    """属性关键帧插值。
+
+    https://prts.wiki/index.php?title=Widget:PropertyCalc&action=edit
+    """
     attributes = {}
     xp = [x["level"] for x in keyframes]
     for key in keyframes[0]["data"].keys():
@@ -83,19 +87,25 @@ def interpolate_dicts(level, keyframes):
             attributes[key] = float(round(attributes[key]))
     return attributes
 
-# 迭代黑板列表。
-# 用法：for key, value, value_str in blackboard_items(blackboard)
 def blackboard_items(blackboard):
+    """迭代黑板列表。
+
+    用法::
+
+        for key, value, value_str in blackboard_items(blackboard)
+    """
     if blackboard is None:
         return
     for item in blackboard:
         yield item["key"], item.get("value"), item.get("valueStr")
 
-# 计算角色在指定等级处的属性。
-# 内部ID，精英化阶段（0~2），等级（1~90），信赖（0~100），潜能（0~5），模组（0~）。
-# 信赖是游戏显示值（0%~200%）的一半：50以上的信赖在属性计算中视作满信赖，游戏显示值的一半（向下取整）作为输入参数，参照favor_table.json。
-# 参数名虽译得奇怪，却是来自数据库的一手命名。
 def calculate_attributes(id, phase, level, favor, potential, uniequip):
+    """计算角色在指定等级处的属性。
+
+    内部ID，精英化阶段（0~2），等级（1~90），信赖（0~100），潜能（0~5），模组（0~）。
+    信赖是游戏显示值（0%~200%）的一半：50以上的信赖在属性计算中视作满信赖，游戏显示值的一半（向下取整）作为输入参数，参照favor_table.json。
+    参数名虽译得奇怪，却是来自数据库的一手命名。
+    """
     # 查询角色成长曲线。
     character = CHARACTERS[id]
     if phase < 0 or phase >= len(character["phases"]):
@@ -129,16 +139,6 @@ def calculate_attributes(id, phase, level, favor, potential, uniequip):
             blackboard[key] += value
     return blackboard
 
-# 转换关卡字典的地图数据到16位色深灰度图像。
-# 像素值是位域：
-#     256+ = 地块类型；
-#     128 = 高台地形；
-#     64 = 可放置远程单位；
-#     32 = 可放置近战单位；
-#     16 = 有黑板；
-#     2 = 可通行飞行单位（猜想）；
-#     1 = 可通行地面单位。
-# 地块类型数值由tile_keys指定，顺序是我随便编的，肯定会变，建议用到时动态查表，如database.tile_keys["tile_hole"]。
 tile_keys = {key: i for i, key in enumerate([
     "tile_empty",
     "tile_forbidden",
@@ -180,6 +180,19 @@ tile_keys = {key: i for i, key in enumerate([
     "tile_volspread",
 ])}
 def level_map(level):
+    """转换关卡字典的地图数据到16位色深灰度图像。
+
+    像素值是位域：
+    - 256+ = 地块类型；
+    - 128 = 高台地形；
+    - 64 = 可放置远程单位；
+    - 32 = 可放置近战单位；
+    - 16 = 有黑板；
+    - 2 = 可通行飞行单位（猜想）；
+    - 1 = 可通行地面单位。
+
+    地块类型数值由tile_keys指定，顺序是我随便编的，肯定会变，建议用到时动态查表，如database.tile_keys["tile_hole"]。
+    """
     a = np.array(level["mapData"]["map"], dtype=np.uint16)
     if a.shape[0] != level["mapData"]["height"] or a.shape[1] != level["mapData"]["width"]:
         raise ValueError("地图数据自相矛盾：宽高与数组大小不对应")

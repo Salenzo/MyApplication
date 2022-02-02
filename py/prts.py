@@ -9,12 +9,12 @@
 import cv2
 import numpy as np
 
-# 根据目标高度，锁定原图比例缩放。
 def resize(img, height, **kwargs):
+    """根据目标高度，锁定原图比例缩放。"""
     return cv2.resize(img, (img.shape[1] * height // img.shape[0], height), **kwargs)
 
-# 创建对比两张图的视频。
 def video_between_two(video_filename, img0, img1):
+    """创建对比两张图的视频。"""
     if img0.shape[:2] != img1.shape[:2]:
         raise ValueError("两个图的大小怎么不一样啊？")
     height, width = img0.shape[:2]
@@ -23,8 +23,8 @@ def video_between_two(video_filename, img0, img1):
         video.write(np.hstack((img0[:, :x], img1[:, x:])))
     video.release()
 
-# 求两直线a0 -- b0和a1 -- b1的交点，各点以元组给出，共计八个数值。
 def line_line_intersection(a0, b0, a1, b1):
+    """求两直线a0 -- b0和a1 -- b1的交点，各点以元组给出，共计八个数值。"""
     A0 = b0[1] - a0[1]
     B0 = a0[0] - b0[0]
     C0 = a0[0] * A0 + a0[1] * B0
@@ -37,9 +37,11 @@ def line_line_intersection(a0, b0, a1, b1):
     else:
         return None
 
-# 合并列表中相近的数值簇。
-# 例如，[1, 1, 4, 5, 1, 4, 1, 9, 1, 9, 8, 1, 0]在阈值略超过1时的结果是[6/7、4 1/3、8 2/3]。
 def average_nearby_numbers(array, threshold):
+    """合并列表中相近的数值簇。
+
+    例如，[1, 1, 4, 5, 1, 4, 1, 9, 1, 9, 8, 1, 0]在阈值略超过1时的结果是[6/7、4 1/3、8 2/3]。
+    """
     if len(array) == 0:
         return []
     cluster = []
@@ -53,8 +55,8 @@ def average_nearby_numbers(array, threshold):
     retval.append(np.mean(cluster))
     return retval
 
-# 通过指定z坐标，降三维透视矩阵到二维。
 def perspective_on_z(perspective, z):
+    """通过指定z坐标，降三维透视矩阵到二维。"""
     if perspective.shape != (4, 4):
         raise ValueError("在非三维透视矩阵上调用perspective_on_z")
     perspective = np.delete(perspective, 2, axis=0)
@@ -62,12 +64,14 @@ def perspective_on_z(perspective, z):
     perspective = np.delete(perspective, 2, axis=1)
     return perspective
 
-# 计算视角的理论值。
-# 该算法由GitHub @yuanyan3060通过逆向工程得到。
-# https://github.com/yuanyan3060/Arknights-Tile-Pos
-# 参数view指定一种摄像机角度，取值0~3，具体值在关卡对应的asset bundle中指定。
-# 参数bullet_time表示查询放置干员时的倾斜视角。
 def generate_perspective(screen_size, level_map, view: int, bullet_time: bool = False):
+    """计算视角的理论值。
+
+    该算法由GitHub @yuanyan3060通过逆向工程得到。
+    https://github.com/yuanyan3060/Arknights-Tile-Pos
+    参数view指定一种摄像机角度，取值0~3，具体值在关卡对应的asset bundle中指定。
+    参数bullet_time表示查询放置干员时的倾斜视角。
+    """
     width, height = screen_size
     aspect_ratio = height / width
     # 从可能的摄像机位置中选择。
@@ -125,8 +129,8 @@ def generate_perspective(screen_size, level_map, view: int, bullet_time: bool = 
     ]) @ matrix
     return matrix
 
-# 绘制选中干员时的可放置位蒙版。
 def generate_bullet_time_buildable_mask(screen_size, level_map, view: int, operator_position: int):
+    """绘制选中干员时的可放置位蒙版。"""
     width, height = screen_size
     img = np.zeros((height, width), dtype=np.uint8)
     perspective = generate_perspective(screen_size, level_map, view, True)
@@ -164,8 +168,8 @@ def generate_bullet_time_buildable_mask(screen_size, level_map, view: int, opera
     ))
     return img
 
-# 从通常截图img0与选中干员的子弹时间中的截图img1推断选中干员带来的视角变化。
 def estimate_bullet_time_transform(img0, img1):
+    """从通常截图img0与选中干员的子弹时间中的截图img1推断选中干员带来的视角变化。"""
     height, width = img0.shape[:2]
     x0, y0 = height * 2 // 3, height // 12
     x1, y1 = width - height // 3, height * 4 // 5
@@ -186,16 +190,18 @@ def estimate_bullet_time_transform(img0, img1):
     #video_between_two("114.mp4", cv2.warpPerspective(img0, homography, (width, height)), img1)
     return homography
 
-# 从两张选中干员且暂停时的截图找出闪烁的可部署地块的二值图像。
-# homography是选中干员带来的视角变化。
 def estimate_buildable_mask(homography, img2, img3):
+    """从两张选中干员且暂停时的截图找出闪烁的可部署地块的二值图像。
+
+    homography是选中干员带来的视角变化。
+    """
     height, width = img2.shape[:2]
     # 先反变换到通常视角，再比较两张图的不同之处，以避免反变换抗锯齿使得得到的图像不是二值的。
     img2, img3 = [cv2.warpPerspective(img, homography, (width, height), flags=cv2.WARP_INVERSE_MAP) for img in [img2, img3]]
     return cv2.inRange(cv2.cvtColor(cv2.absdiff(img2, img3), cv2.COLOR_BGR2GRAY), 1, 255)
 
-# 根据任意地块的二值图像推断通常视角的透视消失点纵坐标。
 def estimate_vanishing_point_y(img1):
+    """根据任意地块的二值图像推断通常视角的透视消失点纵坐标。"""
     height, width = img1.shape[:2]
     # 检测边缘，寻找线段的标准做法。
     img1 = cv2.Canny(img1, 50, 200, None, 3)
@@ -214,11 +220,13 @@ def estimate_vanishing_point_y(img1):
     return np.median(vanishing_point_ys)
     # 实际上，空间地面上间隔相等的水平线，透视后仍为水平线，其到消失点距离的倒数之差也相等。
 
-# 综合练习：估计从地图坐标到通常视角的透视矩阵。
-# level：level_map函数返回的地图图像。
-# img0：通常视角截图；img1：子弹时间截图；img2、img3：选中干员且暂停时的截图。
-# operator_position：位域，选中干员的可部署位置，1 = 可部署在近战位，2 = 可部署在远程位。
 def estimate_perspective(level, img0, img1, img2, img3, operator_position):
+    """综合练习：估计从地图坐标到通常视角的透视矩阵。
+
+    level：level_map函数返回的地图图像。
+    img0：通常视角截图；img1：子弹时间截图；img2、img3：选中干员且暂停时的截图。
+    operator_position：位域，选中干员的可部署位置，1 = 可部署在近战位，2 = 可部署在远程位。
+    """
     height, width = img0.shape[:2]
     bullet_time_homography = estimate_bullet_time_transform(img0, img1)
     # mask：二值可放置位视图。
@@ -265,15 +273,15 @@ def estimate_perspective(level, img0, img1, img2, img3, operator_position):
     best_homography[:, 1] *= 18
     return best_homography, bullet_time_homography
 
-# 计算透视中的所有格点坐标。
 def calculate_grid_points(homography, shape):
+    """计算透视中的所有格点坐标。"""
     # 一并生成格点，批量送入cv2.perspectiveTransform计算透视结果。
     return np.int32(cv2.perspectiveTransform(np.float32(
         np.dstack(np.flipud(np.mgrid[:shape[0] + 1, :shape[1] + 1]))
     ), homography))
 
-# 在图上绘制算得的网格线，用于调试。
 def draw_reseau(img, homography, shape):
+    """在图上绘制算得的网格线，用于调试。"""
     # 如果输入的透视矩阵是三维的，先降维。
     if homography.shape[1] == 4:
         homography = perspective_on_z(homography, 0)
@@ -307,8 +315,8 @@ OCR_BENDER = np.uint8([
     # 等用到再说吧。
 ])
 
-# 识别背景较暗、前景白色的自然数。
 def ocr_natural_number(img, font):
+    """识别背景较暗、前景白色的自然数。"""
     if len(img.shape) > 2:
         raise ValueError("你这图片怎么不是灰度的啊？")
     # 曲线“_/”：使较暗的灰色转换为黑色。
@@ -324,33 +332,37 @@ def ocr_natural_number(img, font):
         value += np.argmin([phash.compare(g, h) for g in font])
     return value
 
-# 计算部署费用的小数部分。
 def fractional_cost(img):
+    """计算部署费用的小数部分。"""
     height = img.shape[0]
     # 最佳判决门限：费用条亮色灰度255，暗色灰度67。
     return np.mean(img[height * 181 // 240, -height // 6:] >= 160)
 
-# 计算部署费用的整数部分。
 def integer_cost(img):
+    """计算部署费用的整数部分。"""
     height = img.shape[0]
     return ocr_natural_number(cv2.cvtColor(img[height * 41 // 60 + 1:height * 3 // 4 - 1, -height // 9:], cv2.COLOR_BGR2GRAY), OCR_NOVECENTO)
 
-# 计算待命中的各干员左边界横坐标（浮点数）。
-# screen_size是(屏幕宽度, 屏幕高度)，n是待命中的干员及装置种类数，index是None。
-# 本来试图计算选中干员时的挤压情况的，但似乎这块逻辑在更新中有过变动，现在难以推测。
-# Unity对象坐标总是存储为浮点数。最终显示时，舍入坐标的方法是round。
-# Unity（.NET CLR）和Python提供的round函数都舍入到最近的整数，在.5时舍入到最近的偶数。
-# 返回值保留小数的原因是该坐标可能继续用于计算其他坐标（例如职业与费用的位置），使用舍入后的值将使最终坐标差1。
 def operator_xs(screen_size, n, index):
+    """计算待命中的各干员左边界横坐标（浮点数）。
+
+    screen_size是(屏幕宽度, 屏幕高度)，n是待命中的干员及装置种类数，index是None。
+    本来试图计算选中干员时的挤压情况的，但似乎这块逻辑在更新中有过变动，现在难以推测。
+    Unity对象坐标总是存储为浮点数。最终显示时，舍入坐标的方法是round。
+    Unity（.NET CLR）和Python提供的round函数都舍入到最近的整数，在.5时舍入到最近的偶数。
+    返回值保留小数的原因是该坐标可能继续用于计算其他坐标（例如职业与费用的位置），使用舍入后的值将使最终坐标差1。
+    """
     width, height = screen_size
     if index is None:
         return np.linspace(max(width - n * height * 89 / 540, 0.0), width, n, endpoint=False)
     else:
         raise NotImplementedError()
 
-# 判断截图是否处在战斗内。
-# 方法是将费用标志所在位置的图像与费用标志模板比较。
 def in_battle(img):
+    """判断截图是否处在战斗内。
+
+    方法是将费用标志所在位置的图像与费用标志模板比较。
+    """
     height, width = img.shape[:2]
     phash = cv2.img_hash.AverageHash_create()
     return phash.compare(

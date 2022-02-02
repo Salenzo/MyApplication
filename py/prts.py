@@ -60,8 +60,9 @@ def perspective_on_z(perspective, z):
 # https://github.com/yuanyan3060/Arknights-Tile-Pos
 # 参数view指定一种摄像机角度，取值0~3，具体值在关卡对应的asset bundle中指定。
 # 参数bullet_time表示查询放置干员时的倾斜视角。
-def camera_perspective(img, level, view: int, bullet_time: bool = False):
-    aspect_ratio = img.shape[0] / img.shape[1]
+def camera_perspective(screen_size, level_map, view: int, bullet_time: bool = False):
+    width, height = screen_size
+    aspect_ratio = height / width
     # 从可能的摄像机位置中选择。
     matrix = np.cumsum([
         [[0.0, -4.81, -7.76], [0.5975104570388794, -0.5, -0.882108688354492]],
@@ -103,19 +104,58 @@ def camera_perspective(img, level, view: int, bullet_time: bool = False):
     ]) @ matrix
     # 透视矩阵初等列变换，移动输入坐标原点到地图中心，并设置高台高度。
     matrix = matrix @ np.float32([
-        [1, 0, 0, -level.shape[1] / 2],
-        [0, 1, 0, -level.shape[0] / 2],
+        [1, 0, 0, -level_map.shape[1] / 2],
+        [0, 1, 0, -level_map.shape[0] / 2],
         [0, 0, -0.4, 0],
         [0, 0, 0, 1],
     ])
     # 透视矩阵初等行变换，将输出坐标从OpenGL坐标系变换到OpenCV坐标系。
     matrix = np.float32([
-        [img.shape[1], 0, 0, img.shape[1]],
-        [0, -img.shape[0], 0, img.shape[0]],
+        [width, 0, 0, width],
+        [0, -height, 0, height],
         [0, 0, 1, 0],
         [0, 0, 0, 2],
     ]) @ matrix
     return matrix
+
+# 绘制选中干员时的可放置位蒙版。
+def generate_bullet_time_buildable_mask(screen_size, level_map, view: int, operator_position: int):
+    width, height = screen_size
+    img = np.zeros((height, width), dtype=np.uint8)
+    perspective = camera_perspective(screen_size, level_map, view, True)
+    grid_points = np.moveaxis([calculate_grid_points(perspective_on_z(perspective, h), level_map.shape) for h in [0, 1]], 0, 2)
+    # 从远到近绘制，产生高台遮挡。
+    for row in reversed(range(level_map.shape[0])):
+        # 先绘制地面，后绘制高台。
+        for h in [0, 1]:
+            for col in range(level_map.shape[1]):
+                # 获取当前地块的高度类和可放置标志。
+                if level_map[row, col] >> 7 & 1 != h: continue
+                color = bool(level_map[row, col] >> 5 & 3 & operator_position) * 255
+                # 无需绘制不可放置的地面块，因为图像初值为黑（np.zeros）。
+                if h == 0 and color == 0: continue
+                cv2.fillConvexPoly(img, np.array([
+                    grid_points[row, col, h],
+                    grid_points[row, col + 1, h],
+                    grid_points[row + 1, col + 1, h],
+                    grid_points[row + 1, col, h],
+                ]), color, cv2.LINE_4)
+                if h == 1:
+                    # 绘制高台的前面。
+                    cv2.fillConvexPoly(img, np.array([
+                        grid_points[row, col, 0],
+                        grid_points[row, col + 1, 0],
+                        grid_points[row, col + 1, 1],
+                        grid_points[row, col, 1],
+                    ]), 0, cv2.LINE_4)
+    # 1920×1080的屏幕测量结果表明，干员立绘蒙版渐变区域横坐标514:785。
+    # 考虑到两端全透明和全不透明像素，认定渐变区宽为屏幕高度之¼。
+    img = np.uint8(img * np.pad(
+        np.linspace(0, 1, height // 4),
+        (height * 19 // 40, width - height // 4 - height * 19 // 40),
+        "edge"
+    ))
+    return img
 
 # 从通常截图img0与选中干员的子弹时间中的截图img1推断选中干员带来的视角变化。
 def estimate_bullet_time_transform(img0, img1):
@@ -141,7 +181,7 @@ def estimate_bullet_time_transform(img0, img1):
 
 # 从两张选中干员且暂停时的截图找出闪烁的可部署地块的二值图像。
 # homography是选中干员带来的视角变化。
-def buildable_mask(homography, img2, img3):
+def estimate_buildable_mask(homography, img2, img3):
     height, width = img2.shape[:2]
     # 先反变换到通常视角，再比较两张图的不同之处，以避免反变换抗锯齿使得得到的图像不是二值的。
     img2, img3 = [cv2.warpPerspective(img, homography, (width, height), flags=cv2.WARP_INVERSE_MAP) for img in [img2, img3]]
@@ -175,7 +215,7 @@ def estimate_perspective(level, img0, img1, img2, img3, operator_position):
     height, width = img0.shape[:2]
     bullet_time_homography = estimate_bullet_time_transform(img0, img1)
     # mask：二值可放置位视图。
-    mask = buildable_mask(bullet_time_homography, img2, img3)
+    mask = estimate_buildable_mask(bullet_time_homography, img2, img3)
     vanishing_point_y = estimate_vanishing_point_y(mask)
     # 按消失点解除图像的透视，使地块对齐坐标轴，以便借助矩形包围框。
     # 基于可放置位不会出现在偏僻地的假设，此处的透视反变换将丢弃左上和右上的像素。
@@ -218,16 +258,20 @@ def estimate_perspective(level, img0, img1, img2, img3, operator_position):
     best_homography[:, 1] *= 18
     return best_homography, bullet_time_homography
 
+# 计算透视中的所有格点坐标。
+def calculate_grid_points(homography, shape):
+    # 一并生成格点，批量送入cv2.perspectiveTransform计算透视结果。
+    return np.int32(cv2.perspectiveTransform(np.float32(
+        np.dstack(np.flipud(np.mgrid[:shape[0] + 1, :shape[1] + 1]))
+    ), homography))
+
 # 在图上绘制算得的网格线，用于调试。
 def draw_reseau(img, homography, shape):
     # 如果输入的透视矩阵是三维的，先降维。
     if homography.shape[1] == 4:
         homography = perspective_on_z(homography, 0)
-    # 一并生成格点，批量送入cv2.perspectiveTransform计算透视结果。
-    points = np.int32(cv2.perspectiveTransform(np.float32(
-        np.dstack(np.flipud(np.mgrid[:shape[0] + 1, :shape[1] + 1]))
-    ), homography))
     # 绘制网格线。
+    points = calculate_grid_points(homography, shape)
     for row in range(shape[0] + 1):
         cv2.line(img, tuple(points[row, 0]), tuple(points[row, shape[1]]), [row * 20, 192, 192], 5)
     for col in range(shape[1] + 1):
@@ -320,9 +364,10 @@ def main():
         level = ptilopsis.level_map(json.load(f))
     homography, bullet_time_homography = estimate_perspective(level, img0, img1, img2, img3, 1)
     draw_reseau(img0, homography, level.shape)
-    draw_reseau(img1, camera_perspective(img1, level, 1, True), level.shape)
+    draw_reseau(img1, camera_perspective((img1.shape[1], img1.shape[0]), level, 1, True), level.shape)
+    img4 = generate_bullet_time_buildable_mask((img1.shape[1], img1.shape[0]), level, 1, 1)
 
-    cv2.imshow("", img0)
+    cv2.imshow("", img4)
     cv2.waitKey()
 
 if __name__ == "__main__":

@@ -129,11 +129,10 @@ def generate_perspective(screen_size, level_map, view: int, bullet_time: bool = 
     ]) @ matrix
     return matrix
 
-def generate_bullet_time_buildable_mask(screen_size, level_map, view: int, operator_position: int):
+def generate_bullet_time_buildable_mask(screen_size, level_map, perspective, operator_position: int):
     """绘制选中干员时的可放置位蒙版。"""
     width, height = screen_size
     img = np.zeros((height, width), dtype=np.uint8)
-    perspective = generate_perspective(screen_size, level_map, view, True)
     grid_points = np.moveaxis([calculate_grid_points(perspective_on_z(perspective, h), level_map.shape) for h in [0, 1]], 0, 2)
     # 从远到近绘制，产生高台遮挡。
     for row in reversed(range(level_map.shape[0])):
@@ -168,6 +167,28 @@ def generate_bullet_time_buildable_mask(screen_size, level_map, view: int, opera
     ))
     return img
 
+def estimate_perspective_ii(level_map, img2, img3, operator_position):
+    """用可部署地块选出从地图坐标到通常视角的透视矩阵。
+
+    同名参数含义与estimate_perspective函数一致，返回值也一致，但是透视矩阵是三维的。
+    """
+    height, width = img2.shape[:2]
+    mask = cv2.compare(cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY), cv2.cvtColor(img3, cv2.COLOR_BGR2GRAY), cv2.CMP_NE)
+    perspectives = [
+        generate_perspective((width, height), level_map, view, True)
+        for view in range(4)
+    ]
+    # 寻找最匹配的一种视角。
+    view = np.argmax([
+        # 峰值信噪比是一种评价图像质量的客观标准……
+        cv2.PSNR(
+            mask,
+            cv2.inRange(generate_bullet_time_buildable_mask((width, height), level_map, perspective, operator_position), 16, 255)
+        )
+        for perspective in perspectives
+    ])
+    return generate_perspective((width, height), level_map, view, False), perspectives[view]
+
 def estimate_bullet_time_transform(img0, img1):
     """从通常截图img0与选中干员的子弹时间中的截图img1推断选中干员带来的视角变化。"""
     height, width = img0.shape[:2]
@@ -191,9 +212,12 @@ def estimate_bullet_time_transform(img0, img1):
     return homography
 
 def estimate_buildable_mask(homography, img2, img3):
-    """从两张选中干员且暂停时的截图找出闪烁的可部署地块的二值图像。
+    """从两张选中干员且暂停时的截图找出闪烁的可部署地块在通常视角下的二值图像。
 
     homography是选中干员带来的视角变化。
+
+    闪烁色与关卡主题有关，一般是绿色，密林悍将归来等部分活动关卡中为褐色。
+    画中人活动关卡中地块不闪烁，使识别失效。
     """
     height, width = img2.shape[:2]
     # 先反变换到通常视角，再比较两张图的不同之处，以避免反变换抗锯齿使得得到的图像不是二值的。
@@ -245,8 +269,8 @@ def estimate_perspective(level, img0, img1, img2, img3, operator_position):
     # template是每格图块占用18行1列的矩阵，求出的透视矩阵y分量还需变换。
     # TODO operator_position
     # TODO 左右对称修正
-    template1 = np.repeat(cv2.compare(cv2.bitwise_and(level, 32), 0, cv2.CMP_NE), 18, axis=0)
-    template2 = np.repeat(cv2.compare(cv2.bitwise_and(level, 128 | 32), 128, cv2.CMP_EQ), 18, axis=0)
+    template1 = np.repeat(cv2.compare(cv2.bitwise_and(np.flipud(level), 32), 0, cv2.CMP_NE), 18, axis=0)
+    template2 = np.repeat(cv2.compare(cv2.bitwise_and(np.flipud(level), 128 | 32), 128, cv2.CMP_EQ), 18, axis=0)
     best_homography, minimum_error = None, np.inf
     for i in range(18):
         # template是二值地图数据。
@@ -380,12 +404,10 @@ def main():
     img2 = cv2.imread("b3.png")
     img3 = cv2.imread("b4.png")
     level = ptilopsis.level_map(ptilopsis.read_json("level_a001_06.json"))
-    homography, bullet_time_homography = estimate_perspective(level, img0, img1, img2, img3, 1)
+    homography, bullet_time_homography = estimate_perspective_ii(level, img2, img3, 1)
     draw_reseau(img0, homography, level.shape)
-    draw_reseau(img1, generate_perspective((img1.shape[1], img1.shape[0]), level, 1, True), level.shape)
-    img4 = generate_bullet_time_buildable_mask((img1.shape[1], img1.shape[0]), level, 1, 1)
 
-    cv2.imshow("", img4)
+    cv2.imshow("", img0)
     cv2.waitKey()
 
 if __name__ == "__main__":

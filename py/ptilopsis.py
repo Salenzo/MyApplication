@@ -179,6 +179,7 @@ tile_keys = {key: i for i, key in enumerate([
     "tile_volcano_emp",
     "tile_volspread",
 ])}
+
 def level_map(level):
     """转换关卡字典的地图数据到16位色深灰度图像。
 
@@ -193,7 +194,7 @@ def level_map(level):
 
     地块类型数值由tile_keys指定，顺序是我随便编的，肯定会变，建议用到时动态查表，如database.tile_keys["tile_hole"]。
     """
-    a = np.array(level["mapData"]["map"], dtype=np.uint16)
+    a = np.flipud(np.array(level["mapData"]["map"], dtype=np.uint16))
     if a.shape[0] != level["mapData"]["height"] or a.shape[1] != level["mapData"]["width"]:
         raise ValueError("地图数据自相矛盾：宽高与数组大小不对应")
     for row, col in np.ndindex(a.shape):
@@ -210,6 +211,9 @@ def level_map(level):
     return a
 
 def main():
+    # Victory
+    # Supreme
+    # Code
     a = calculate_attributes(
         find_character_by_name_and_profession("末药", "MEDIC"),
         # 精英等级1，等级14，信赖51，潜能5

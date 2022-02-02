@@ -1,4 +1,11 @@
-import json
+"""原始罗德岛终端服务，将用代理指挥出现失误为博士烧水。
+*它可能无法理解你的操作。*
+
+代理指挥需要模拟操作和知晓点按位置。迫真传奇重犯提供了模拟操作的接口，本模块则包含识别作战界面元素、计算坐标的子程序。
+
+名称以generate开头的函数需要足够的已知参数来返回理论结果；名称以estimate开头的函数从截图中推测变量的值。前缀不是在任何时候都必要的，你知道光学字符识别是一种估计。
+"""
+
 import cv2
 import numpy as np
 
@@ -60,7 +67,7 @@ def perspective_on_z(perspective, z):
 # https://github.com/yuanyan3060/Arknights-Tile-Pos
 # 参数view指定一种摄像机角度，取值0~3，具体值在关卡对应的asset bundle中指定。
 # 参数bullet_time表示查询放置干员时的倾斜视角。
-def camera_perspective(screen_size, level_map, view: int, bullet_time: bool = False):
+def generate_perspective(screen_size, level_map, view: int, bullet_time: bool = False):
     width, height = screen_size
     aspect_ratio = height / width
     # 从可能的摄像机位置中选择。
@@ -122,7 +129,7 @@ def camera_perspective(screen_size, level_map, view: int, bullet_time: bool = Fa
 def generate_bullet_time_buildable_mask(screen_size, level_map, view: int, operator_position: int):
     width, height = screen_size
     img = np.zeros((height, width), dtype=np.uint8)
-    perspective = camera_perspective(screen_size, level_map, view, True)
+    perspective = generate_perspective(screen_size, level_map, view, True)
     grid_points = np.moveaxis([calculate_grid_points(perspective_on_z(perspective, h), level_map.shape) for h in [0, 1]], 0, 2)
     # 从远到近绘制，产生高台遮挡。
     for row in reversed(range(level_map.shape[0])):
@@ -360,11 +367,10 @@ def main():
     img1 = cv2.imread("b2.png")
     img2 = cv2.imread("b3.png")
     img3 = cv2.imread("b4.png")
-    with open("level_a001_06.json") as f:
-        level = ptilopsis.level_map(json.load(f))
+    level = ptilopsis.level_map(ptilopsis.read_json("level_a001_06.json"))
     homography, bullet_time_homography = estimate_perspective(level, img0, img1, img2, img3, 1)
     draw_reseau(img0, homography, level.shape)
-    draw_reseau(img1, camera_perspective((img1.shape[1], img1.shape[0]), level, 1, True), level.shape)
+    draw_reseau(img1, generate_perspective((img1.shape[1], img1.shape[0]), level, 1, True), level.shape)
     img4 = generate_bullet_time_buildable_mask((img1.shape[1], img1.shape[0]), level, 1, 1)
 
     cv2.imshow("", img4)

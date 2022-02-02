@@ -1,7 +1,10 @@
+"""这片大地（1/1）。
+
+预测的能力是优化的前提，本模块使未经打磨的仿真运行成为可能。
+"""
+
 import numpy as np
 import ptilopsis
-
-# 这片大地。
 
 # motion_mode：0 = 地面单位；1 = 飞行单位。
 class PathFinder:

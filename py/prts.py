@@ -313,11 +313,11 @@ def visualize_phash(cls, h):
             # OpenCV实现的块均值散列省略了文档引用的论文中算法的加密，且所谓块“中位数”实为均值，使得它除了大一点以外，和均值散列没什么两样。
             return np.unpackbits(h, bitorder="little").reshape(16, 16) * 255
         else:
-            raise NotImplementedError()
-            return
+            return np.unpackbits(h, bitorder="little")[:-7].reshape(31, 31) * 255
     elif cls is cv2.img_hash.pHash:
-        raise NotImplementedError()
-        return cv2.idct()
+        return cv2.normalize(cv2.idct(
+            np.pad(np.unpackbits(h, bitorder="little").reshape(8, 8).astype(np.float32) - np.float32(0.5), ((0, 24),))
+        ), None, 0, 255, cv2.NORM_MINMAX, cv2.CV_8U)
     raise ValueError("我没用过这种感知散列")
 
 def ocr_natural_number(img, font):
@@ -389,7 +389,6 @@ def main():
     draw_reseau(img0, homography, level.shape)
 
     cv2.imshow("", img0)
-    cv2.imshow("", visualize_phash(cv2.img_hash.pHash, "8a0303f6df3ec8cd"))
     cv2.waitKey()
 
 if __name__ == "__main__":

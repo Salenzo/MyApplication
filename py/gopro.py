@@ -55,3 +55,19 @@ def average_nearby_numbers(array, threshold):
             cluster.append(x)
     retval.append(np.mean(cluster))
     return retval
+
+def p_hash(img):
+    """OpenCV pHash的Python再实现。"""
+    dct = cv2.dct(cv2.cvtColor(cv2.resize(img, (32, 32), interpolation=cv2.INTER_LINEAR_EXACT), cv2.COLOR_BGR2GRAY).astype(np.float32))[:8, :8]
+    dct[0, 0] = 0
+    return cv2.compare(dct, float(np.mean(dct)), cv2.CMP_GT) // 255
+
+def color_moment_hash(img):
+    """OpenCV颜色矩散列的Python再实现。"""
+    img = cv2.resize(img, (512, 512), interpolation=cv2.INTER_CUBIC)
+    img = cv2.GaussianBlur(img, (3, 3), 0, 0)
+    return np.ravel([
+        cv2.HuMoments(cv2.moments(channel))
+        for code in [cv2.COLOR_BGR2HSV, cv2.COLOR_BGR2YCrCb]
+        for channel in cv2.split(cv2.cvtColor(img, code))
+    ])

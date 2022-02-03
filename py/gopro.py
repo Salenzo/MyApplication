@@ -71,3 +71,11 @@ def color_moment_hash(img):
         for code in [cv2.COLOR_BGR2HSV, cv2.COLOR_BGR2YCrCb]
         for channel in cv2.split(cv2.cvtColor(img, code))
     ])
+
+def progress_bar(progress, width):
+    """产生长width的进度条字符串，0 ≤ progress ≤ 1。"""
+    assert 0 <= progress <= 1
+    progress *= width
+    progress = "█" * int(progress) + " ▏▎▍▌▋▊▉"[int((progress - int(progress)) * 8)]
+    # 如果进度是1，此时progress的长度已经因末尾空格而超过width。
+    return f"{progress:{width}}"[:width]

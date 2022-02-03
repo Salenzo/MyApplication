@@ -1,5 +1,5 @@
 """原始罗德岛终端服务，将用代理指挥出现失误为博士烧水。
-*它可能无法理解你的操作。*
+*它完全没有理解你的操作。*
 
 代理指挥需要模拟操作和知晓点按位置。迫真传奇重犯提供了模拟操作的接口，本模块则包含识别作战界面元素、计算坐标的子程序。
 
@@ -8,52 +8,6 @@
 
 import cv2
 import numpy as np
-
-def resize(img, height, **kwargs):
-    """根据目标高度，锁定原图比例缩放。"""
-    return cv2.resize(img, (img.shape[1] * height // img.shape[0], height), **kwargs)
-
-def video_between_two(video_filename, img0, img1):
-    """创建对比两张图的视频。"""
-    if img0.shape[:2] != img1.shape[:2]:
-        raise ValueError("两个图的大小怎么不一样啊？")
-    height, width = img0.shape[:2]
-    video = cv2.VideoWriter(video_filename, cv2.VideoWriter_fourcc(*"avc1"), 60, (width, height))
-    for x in range(0, width, width // 500):
-        video.write(np.hstack((img0[:, :x], img1[:, x:])))
-    video.release()
-
-def line_line_intersection(a0, b0, a1, b1):
-    """求两直线a0 -- b0和a1 -- b1的交点，各点以元组给出，共计八个数值。"""
-    A0 = b0[1] - a0[1]
-    B0 = a0[0] - b0[0]
-    C0 = a0[0] * A0 + a0[1] * B0
-    A1 = b1[1] - a1[1]
-    B1 = a1[0] - b1[0]
-    C1 = a1[0] * A1 + a1[1] * B1
-    det = A0 * B1 - A1 * B0
-    if abs(det) > 1e-8:
-        return (C0 * B1 - C1 * B0) / det, (C1 * A0 - C0 * A1) / det
-    else:
-        return None
-
-def average_nearby_numbers(array, threshold):
-    """合并列表中相近的数值簇。
-
-    例如，[1, 1, 4, 5, 1, 4, 1, 9, 1, 9, 8, 1, 0]在阈值略超过1时的结果是[6/7、4 1/3、8 2/3]。
-    """
-    if len(array) == 0:
-        return []
-    cluster = []
-    retval = []
-    for x in np.sort(array):
-        if len(cluster) != 0 and x - cluster[0] >= threshold:
-            retval.append(np.mean(cluster))
-            cluster = [x]
-        else:
-            cluster.append(x)
-    retval.append(np.mean(cluster))
-    return retval
 
 def perspective_on_z(perspective, z):
     """通过指定z坐标，降三维透视矩阵到二维。"""
@@ -321,7 +275,6 @@ def draw_reseau(img, homography, shape):
 
 # 字形的均值散列值表。
 # 我可以从十六进制散列中直接读出原图，你也可以。
-# Novecento字体主要用于作战中。这里的散列值来自部署费用。
 OCR_NOVECENTO = np.uint8([
     [0x3c, 0x42, 0x81, 0x81, 0x81, 0x81, 0x42, 0x3c], # 0
     [0xe0, 0xfc, 0xe7, 0xe0, 0xe0, 0xe0, 0xe0, 0xe0], # 1
@@ -334,10 +287,15 @@ OCR_NOVECENTO = np.uint8([
     [0x3c, 0x42, 0x42, 0x3c, 0x42, 0x81, 0x83, 0x7e], # 8
     [0x3c, 0xc3, 0x81, 0x81, 0x66, 0x20, 0x10, 0x08], # 9
 ])
-# Bender字体主要用于基建中。
+"""Novecento字体主要用于作战中。
+
+这里的散列值来自部署费用。
+"""
+
 OCR_BENDER = np.uint8([
     # 等用到再说吧。
 ])
+"""Bender字体主要用于基建中。"""
 
 def visualize_phash(cls, h):
     """可视化感知散列到微型二值图像。
@@ -351,8 +309,15 @@ def visualize_phash(cls, h):
     if cls is cv2.img_hash.averageHash:
         return np.unpackbits(h, bitorder="little").reshape(8, 8) * 255
     elif cls is cv2.img_hash.blockMeanHash:
-        # OpenCV实现的块均值散列省略了文档引用的论文中算法的加密，且所谓块“中位数”实为均值，使得它除了大一点以外，和均值散列没什么两样。
-        return np.unpackbits(h, bitorder="little").reshape(16, 16) * 255
+        if len(h) == 32:
+            # OpenCV实现的块均值散列省略了文档引用的论文中算法的加密，且所谓块“中位数”实为均值，使得它除了大一点以外，和均值散列没什么两样。
+            return np.unpackbits(h, bitorder="little").reshape(16, 16) * 255
+        else:
+            raise NotImplementedError()
+            return
+    elif cls is cv2.img_hash.pHash:
+        raise NotImplementedError()
+        return cv2.idct()
     raise ValueError("我没用过这种感知散列")
 
 def ocr_natural_number(img, font):
@@ -424,7 +389,7 @@ def main():
     draw_reseau(img0, homography, level.shape)
 
     cv2.imshow("", img0)
-    cv2.imshow("", visualize_phash(cv2.img_hash.blockMeanHash, "10087c3efffffe7f00008001c003fe3ffc3f003c003e9c07fe03fe03e7ffc2ff"))
+    cv2.imshow("", visualize_phash(cv2.img_hash.pHash, "8a0303f6df3ec8cd"))
     cv2.waitKey()
 
 if __name__ == "__main__":

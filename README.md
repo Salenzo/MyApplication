@@ -17,3 +17,4 @@ Yet another (rubbish) dump-type app.
 - [明日方舟伤害曲线模拟器](https://github.com/FallCicada/ArknightsDamageCurve)
 - [战斗中选中干员时，干员间疏密居然会变化](https://bbs.nga.cn/read.php?tid=22823760)、[战斗中选择干员bug](https://bbs.nga.cn/read.php?tid=25942672)
 - [识别明日方舟地图中的格子](https://github.com/yuanyan3060/Arknights-Tile-Pos)
+- [基于思源黑体的开源像素字体](https://github.com/44670/SourceHanSans-Pixel)

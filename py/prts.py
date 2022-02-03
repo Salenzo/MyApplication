@@ -8,6 +8,7 @@
 
 import cv2
 import numpy as np
+from gopro import progress_bar
 
 def perspective_on_z(perspective, z):
     """通过指定z坐标，降三维透视矩阵到二维。"""
@@ -347,6 +348,32 @@ def integer_cost(img):
     """计算部署费用的整数部分。"""
     height = img.shape[0]
     return ocr_natural_number(cv2.cvtColor(img[height * 41 // 60 + 1:height * 3 // 4 - 1, -height // 9:], cv2.COLOR_BGR2GRAY), OCR_NOVECENTO)
+
+def cache_font_bitmap(font_filename):
+    """创建字形位图缓存，用于中日韩光学字符识别。
+
+    产生的图像以英文书写顺序排列256×256个字形，覆盖Unicode基本多文种平面。
+    字形尺寸是16×16像素，故可将0类cv2.blockMeanHash的结果直接与之比较。
+
+    只有本函数需要FreeType。如果目标环境难以启用FreeType，可从其他计算机拷贝缓存数据。
+
+    以基于思源黑体的开源像素字体生成脚本为蓝本编写了本函数，但代码已面目全非。
+    https://github.com/44670/SourceHanSans-Pixel
+    """
+    import freetype
+    face = freetype.Face(font_filename)
+    face.set_pixel_sizes(17, 16) # 微调以撑满
+    img = np.empty((4096, 4096 // 8), dtype=np.uint8)
+    for i in range(65536):
+        if not face.get_char_index(i): continue
+        face.load_char(chr(i), flags = freetype.FT_LOAD_TARGET_MONO | freetype.FT_LOAD_RENDER)
+        pitch = face.glyph.bitmap.pitch
+        buffer = face.glyph.bitmap.buffer
+        for y in range(min(face.glyph.bitmap.rows, 16)):
+            for x in range(min((face.glyph.bitmap.width - 1) // 8 + 1, 2)):
+                img[i >> 8 << 4 | y, (i & 255) << 1 | x] = buffer[pitch * y + x]
+        if i % 100 == 0: print(progress_bar(i / 65536, 40), i)
+    return np.unpackbits(img, axis=1) * 255
 
 def operator_xs(screen_size, n, index):
     """计算待命中的各干员左边界横坐标（浮点数）。

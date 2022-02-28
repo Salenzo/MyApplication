@@ -92,6 +92,7 @@ class InfamousRecidivistService :	AccessibilityService() {
 	var mtvOutput1: TextView? = null
 	var mtvOutput2: TextView? = null
 	var mtvOutput3: TextView? = null
+	val mtvOutputs: Array<TextView?> = arrayOfNulls(16)
 	var mllTouch: LinearLayout? = null
 
 	@SuppressLint("ClickableViewAccessibility")
@@ -132,101 +133,6 @@ class InfamousRecidivistService :	AccessibilityService() {
 			WindowManager.LayoutParams.FLAG_FULLSCREEN or WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
 			PixelFormat.TRANSLUCENT
 		))
-		// Create an overlay and display the action bar
-		wm.addView(LinearLayout(this).apply {
-			layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-			orientation = LinearLayout.HORIZONTAL
-			addView(Button(this@InfamousRecidivistService).apply {
-				text = "发出很大声音\n程度的能力"
-				textSize /= 4
-				layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-				setOnClickListener {
-					(getSystemService(AUDIO_SERVICE) as AudioManager).adjustStreamVolume(
-						AudioManager.STREAM_MUSIC,
-						AudioManager.ADJUST_RAISE,
-						AudioManager.FLAG_SHOW_UI
-					)
-				}
-				visibility = ViewGroup.GONE
-			})
-			addView(Button(this@InfamousRecidivistService).apply {
-				text = "scroll"
-				layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-				setOnClickListener {
-					rootInActiveWindow?.let {
-						findScrollableNode(it)?.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_FORWARD.id)
-					} ?: run {
-						Toast.makeText(this@InfamousRecidivistService, "失敗した…", Toast.LENGTH_SHORT)
-					}
-				}
-				visibility = ViewGroup.GONE
-			})
-			addView(Button(this@InfamousRecidivistService).apply {
-				text = "swipe"
-				layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-				setOnClickListener {
-					dispatchGesture(GestureDescription.Builder().addStroke(StrokeDescription(Path().apply {
-						moveTo(400f, 1000f)
-						lineTo(400f, 400f)
-					}, 0, 50)).build(), null, null)
-				}
-				visibility = ViewGroup.GONE
-			})
-			addView(Button(this@InfamousRecidivistService).apply {
-				text = "View?"
-				layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-				setOnClickListener {
-					val v = rootInActiveWindow
-					if (v != null) {
-						this.text = "${v.viewIdResourceName}\n${v.text}\n${v.hintText}\n${v.windowId}"
-						findFocus(AccessibilityNodeInfo.FOCUS_INPUT)?.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, Bundle().apply {
-							putString(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, "114514")
-						})
-					} else {
-						this.text = "hengheng"
-					}
-				}
-				//visibility = ViewGroup.GONE
-			})
-			addView(Button(this@InfamousRecidivistService).apply {
-				text = "录屏"
-				setOnClickListener {
-					text = "开始了吗？"
-					//background = BitmapDrawable(resources, SelectDeviceActivity.deimg())
-				}
-				visibility = ViewGroup.GONE
-			})
-			addView(Button(this@InfamousRecidivistService).apply {
-				text = "x, y"
-				setOnClickListener {
-					if (mllTouch?.visibility == ViewGroup.VISIBLE) {
-						mllTouch?.visibility = ViewGroup.GONE
-						mtvOutput1?.visibility = ViewGroup.GONE
-					} else {
-						mllTouch?.visibility = ViewGroup.VISIBLE
-						mtvOutput1?.visibility = ViewGroup.VISIBLE
-					}
-				}
-			})
-			addView(Button(this@InfamousRecidivistService).apply {
-				text = "获取截屏权限"
-				setOnClickListener {
-					if (mediaProjectionToken != null) {
-						renewMediaProjection()
-					} else {
-						GiveMeYourMediaProjectionTokenActivity.fire(this@InfamousRecidivistService)
-					}
-				}
-			})
-		}, WindowManager.LayoutParams(
-			WindowManager.LayoutParams.WRAP_CONTENT,
-			WindowManager.LayoutParams.WRAP_CONTENT,
-			WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-			WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-			PixelFormat.TRANSLUCENT
-		).apply {
-			gravity = Gravity.TOP
-		})
 		wm.addView(LinearLayout(this).apply {
 			layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
 			orientation = LinearLayout.VERTICAL
@@ -263,11 +169,68 @@ class InfamousRecidivistService :	AccessibilityService() {
 					setPadding(20, 4, 20, 4)
 				}
 			}
+			setOnClickListener {
+				PopupMenu(this@InfamousRecidivistService, it, Gravity.BOTTOM).apply {
+					menu.add("发出很大声音程度的能力").setOnMenuItemClickListener {
+						(getSystemService(AUDIO_SERVICE) as AudioManager).adjustStreamVolume(
+							AudioManager.STREAM_MUSIC,
+							AudioManager.ADJUST_RAISE,
+							AudioManager.FLAG_SHOW_UI
+						)
+						true
+					}
+					menu.add("滚动").setOnMenuItemClickListener {
+						rootInActiveWindow?.let {
+							findScrollableNode(it)?.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_FORWARD.id)
+						} ?: run {
+							log("失敗した…", 16)
+						}
+						true
+					}
+					menu.add("滑动").setOnMenuItemClickListener {
+						dispatchGesture(GestureDescription.Builder().addStroke(StrokeDescription(Path().apply {
+							moveTo(400f, 1000f)
+							lineTo(400f, 400f)
+						}, 0, 50)).build(), null, null)
+						true
+					}
+					menu.add("活动窗口的根").setOnMenuItemClickListener {
+						val v = rootInActiveWindow
+						if (v != null) {
+							log("${v.viewIdResourceName}, ${v.text}, ${v.hintText}, ${v.windowId}", 16)
+							findFocus(AccessibilityNodeInfo.FOCUS_INPUT)?.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, Bundle().apply {
+								putString(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, "114514")
+							})
+						} else {
+							log("hengheng", 16)
+						}
+						true
+					}
+					menu.add("坐标拾取器").setOnMenuItemClickListener {
+						if (mllTouch?.visibility == ViewGroup.VISIBLE) {
+							mllTouch?.visibility = ViewGroup.GONE
+							mtvOutput1?.visibility = ViewGroup.GONE
+						} else {
+							mllTouch?.visibility = ViewGroup.VISIBLE
+							mtvOutput1?.visibility = ViewGroup.VISIBLE
+						}
+						true
+					}
+					menu.add("获取截屏权限").setOnMenuItemClickListener {
+						if (mediaProjectionToken != null) {
+							renewMediaProjection()
+						} else {
+							GiveMeYourMediaProjectionTokenActivity.fire(this@InfamousRecidivistService)
+						}
+						true
+					}
+				}.show()
+			}
 		}, WindowManager.LayoutParams(
 			WindowManager.LayoutParams.MATCH_PARENT,
 			WindowManager.LayoutParams.WRAP_CONTENT,
 			WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-			WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
+			WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
 			PixelFormat.TRANSLUCENT
 		).apply {
 			gravity = Gravity.BOTTOM

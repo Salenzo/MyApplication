@@ -52,7 +52,7 @@
 			android:name=".InfamousRecidivistService$GiveMeYourMediaProjectionTokenActivity"
 			android:theme="@style/ActivityForAnotherActivity"
 			android:excludeFromRecents="true"
-			android:launchMode="singleTop"
+			android:launchMode="singleInstance"
 			android:exported="true"/>
 		<activity
 			android:name=".SelectDeviceActivity"

@@ -17,6 +17,7 @@ import android.media.AudioManager
 import android.media.ImageReader
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
@@ -222,6 +223,12 @@ class InfamousRecidivistService :	AccessibilityService() {
 						} else {
 							GiveMeYourMediaProjectionTokenActivity.fire(this@InfamousRecidivistService)
 						}
+						true
+					}
+					menu.add("简陋文件写入工具").setOnMenuItemClickListener {
+						startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("http://localhost:11451/")).apply {
+							addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+						})
 						true
 					}
 				}.show()

@@ -50,6 +50,8 @@ import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.FutureTask
 import java.util.concurrent.TimeUnit
+import java.util.zip.CRC32
+import java.util.zip.CheckedInputStream
 import kotlin.collections.ArrayDeque
 import kotlin.concurrent.thread
 import kotlin.io.path.deleteExisting
@@ -259,8 +261,9 @@ class InfamousRecidivistService :	AccessibilityService() {
 					"<style>*{margin:0;padding:0}textarea{width:90vw;height:90vh}</style><center>" +
 					"<form method=post><input name=filename value=app.py><input type=submit>\n" +
 					"<a href=reload>再运行</a>\n" +
-					"<a href=reset title=将会删除提交的所有文件，只留下空的app.py。 onclick=confirm(title)||event.preventDefault()>删光</a>" +
-					"<textarea name=contents>" +
+					"<a href=reset title=将会删除提交的所有文件，只留下空的app.py。 onclick=confirm(title)||event.preventDefault()>删光</a>\n" +
+					"<a href=ls title=显示文件大小和用于ZIP的CRC32。>清单</a>\n" +
+					"<div><textarea name=contents>" +
 					f.readText().replace("&", "&amp;").replace("<", "&lt;")
 				)
 			}
@@ -306,6 +309,28 @@ class InfamousRecidivistService :	AccessibilityService() {
 				stopPython()
 				response.send("<!DOCTYPE html>\n<title>Breaking news</title>" +
 					"<a href=..>呜呼……</a>")
+			}
+			this.get("/ls") { request, response ->
+				val sb = StringBuilder()
+				Files.walkFileTree(codeDir.toPath(), object : SimpleFileVisitor<java.nio.file.Path>() {
+					override fun visitFile(file: java.nio.file.Path, attrs: BasicFileAttributes?): FileVisitResult {
+						sb.append(codeDir.toPath().relativize(file).toString())
+						sb.append('\t')
+						sb.append(Files.size(file))
+						sb.append(try {
+							val cis = CheckedInputStream(file.toFile().inputStream(), CRC32())
+							val buf = ByteArray(4096)
+							while (cis.read(buf) >= 0) {
+								// 加点注释，否则IDEA又吵又闹……
+							}
+							"\t%08x\n".format(cis.checksum.value)
+						} catch (e: IOException) {
+							"\tERROR\n"
+						})
+						return FileVisitResult.CONTINUE
+					}
+				})
+				response.send("text/plain", sb.toString())
 			}
 			listen(11451)
 		}
@@ -393,7 +418,8 @@ class InfamousRecidivistService :	AccessibilityService() {
 
 	@Suppress("unused", "MemberVisibilityCanBePrivate")
 	fun tap(x: Float, y: Float) {
-		swipe(x - 1, y - 1, x + 1, y + 1, 0.02f)
+		// “Path bounds must not be negative”……Android只会检查什么没用的东西？
+		swipe((x - 1).coerceAtLeast(0f), (y - 1).coerceAtLeast(0f), x + 1, y + 1, 0.02f)
 	}
 
 	@Suppress("unused", "MemberVisibilityCanBePrivate")

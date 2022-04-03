@@ -14,14 +14,18 @@ android {
 		versionCode 2
 		versionName "0.0.4"
 		ndk {
-			abiFilters "armeabi-v7a", "x86"
+			abiFilters "armeabi-v7a", "arm64-v8a", "x86"
 		}
 		python {
 			pip {
 				//options "--index-url", "https://mirror.sjtu.edu.cn/pypi/web/simple"
 				install "opencv-contrib-python==4.5.1.48"
 				install "pillow"
+				install "requests"
+				install "urllib3"
+				install "Pygments"
 				install "kiwisolver" // 仓库里有，很神奇，就加了这个依赖。反正又没人在意APK是不是有114GB那么大。
+				install "cast-unknown"
 			}
 		}
 		externalNativeBuild {
